@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Squeek Flap — Run With Squeektoshi | Bản chơi thử</title>
+<meta name="description" content="Squeek Flap: a Flappy-style browser game starring Squeektoshi the hamster, with maps seeded by the live Squeekchain round.">
+<meta property="og:title" content="Squeek Flap — Run With Squeektoshi">
+<meta property="og:description" content="Fly Squeektoshi through bamboo columns on a map seeded by the live Squeekchain round.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="og-image.svg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317102a'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle'%3E%F0%9F%90%B9%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#17102a; --panel:#241a3f; --panel2:#2e2150; --line:#4b367c;
+    --gold:#facc15; --orange:#fb923c; --green:#4ade80; --pink:#fda4af;
+    --text:#fff7e6; --muted:#cbbfe8; --red:#f87171;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1000px 600px at 50% -10%, #3b2766 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:"Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:14px 10px 28px;
+  }
+  .wrap{width:100%; max-width:440px}
+  header{text-align:center; margin:2px 0 10px}
+  h1{
+    margin:0; font-size:30px; letter-spacing:1px; line-height:1.1;
+    font-family:"Courier New", monospace; font-weight:900;
+    color:var(--gold); text-shadow:3px 3px 0 #7c2d12, 6px 6px 0 rgba(0,0,0,.25);
+  }
+  .sub{color:var(--muted); font-size:13px; margin-top:6px}
+  .live{
+    background:var(--panel); border:2px solid var(--line); border-radius:14px;
+    padding:9px 12px; margin-bottom:10px; font-size:13px;
+  }
+  .live .row{display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap}
+  .live b{color:#fff}
+  .dot{display:inline-block; width:9px; height:9px; border-radius:50%; background:#888; margin-right:5px; vertical-align:1px}
+  .dot.on{background:var(--green); box-shadow:0 0 8px var(--green)}
+  .dot.off{background:var(--pink)}
+  .live .note{color:var(--muted); font-size:11.5px; margin-top:5px}
+  .stage{
+    position:relative; border:3px solid #0d0918; border-radius:16px; overflow:hidden;
+    box-shadow:0 18px 40px rgba(0,0,0,.45); background:#79c7e3;
+    touch-action:none; user-select:none;
+  }
+  canvas{display:block; width:100%; height:auto}
+  .overlay{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:20px; background:rgba(16,8,32,.45); z-index:5;
+  }
+  .overlay.hidden{display:none}
+  .overlay h2{
+    margin:0 0 6px; font-family:"Courier New",monospace; font-size:27px; color:var(--gold);
+    text-shadow:2px 2px 0 #7c2d12;
+  }
+  .overlay p{margin:4px 0; font-size:14px; color:#fff; text-shadow:1px 1px 2px #000}
+  .overlay .small{font-size:12px; color:var(--muted)}
+  .skinbox{margin-top:8px; text-align:left; max-height:330px; overflow-y:auto; padding-right:2px}
+  .skingrid{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px}
+  .skincard{background:rgba(0,0,0,.30); border:2px solid rgba(255,255,255,.14); border-radius:10px; padding:6px 4px 7px; text-align:center}
+  .skincard.eq{border-color:var(--gold); box-shadow:0 0 10px rgba(250,204,21,.35)}
+  .skincard .pv{position:relative; line-height:0}
+  .skincard img{width:92px; height:76px; image-rendering:pixelated}
+  .skincard.locked img{filter:saturate(.35) brightness(.75)}
+  .skincard .lock{position:absolute; top:2px; right:4px; font-size:15px; line-height:1}
+  .skincard .nm{font-size:12.5px; font-weight:700; color:#fff; text-shadow:1px 1px 2px #000; margin-top:3px}
+  .skincard .pbar{height:6px; background:rgba(255,255,255,.16); border-radius:3px; margin:5px 3px 3px; overflow:hidden}
+  .skincard .pbar i{display:block; height:100%; background:linear-gradient(90deg, #b45309, var(--gold))}
+  .skincard .st{font-size:10.5px; color:var(--muted); min-height:14px}
+  .skincard .eqb{font-size:11.5px; font-weight:800; color:var(--gold); margin-top:4px}
+  .skinbtn.wide{width:calc(100% - 6px); margin-top:4px; padding:5px 0}
+  .skinbtn{background:var(--gold); color:#231303; border:0; border-radius:6px; padding:3px 12px; font-weight:700; cursor:pointer; font-size:12px}
+  .chalbox{margin-top:8px; text-align:left}
+  .chalrow{display:flex; gap:6px; flex-wrap:wrap; margin-top:4px}
+  .chalrow input{flex:1; min-width:110px; background:rgba(0,0,0,.3); border:1px solid rgba(255,255,255,.25); border-radius:6px; color:#fff; padding:5px 8px; font-size:12px}
+  .btn{
+    appearance:none; border:0; cursor:pointer; margin-top:12px;
+    background:linear-gradient(#fde047,#f59e0b); color:#451a03;
+    font-weight:900; font-size:17px; padding:13px 26px; border-radius:999px;
+    box-shadow:0 5px 0 #92400e, 0 10px 18px rgba(0,0,0,.35);
+  }
+  .btn:active{transform:translateY(3px); box-shadow:0 2px 0 #92400e}
+  .btn.ghost{background:var(--panel2); color:var(--text); box-shadow:0 4px 0 #17102a; border:2px solid var(--line); font-size:14px; padding:10px 18px}
+  .receipt{
+    background:rgba(23,16,42,.92); border:2px dashed var(--gold); border-radius:12px;
+    padding:10px 14px; margin-top:10px; font-size:13px; text-align:left; min-width:250px;
+  }
+  .receipt div{display:flex; justify-content:space-between; gap:14px}
+  .controls{display:flex; gap:8px; margin-top:10px}
+  .controls button{
+    flex:1; appearance:none; border:2px solid var(--line); background:var(--panel); color:var(--text);
+    border-radius:12px; padding:10px 6px; font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .controls button:active{background:var(--panel2)}
+  .howto{
+    background:var(--panel); border:2px solid var(--line); border-radius:14px;
+    padding:11px 14px; margin-top:10px; font-size:13.5px; line-height:1.55; color:#efe9ff;
+  }
+  .howto h3{margin:0 0 5px; font-size:14px; color:var(--gold)}
+  .howto ul{margin:4px 0 0 17px; padding:0}
+  footer{color:var(--muted); font-size:11.5px; text-align:center; margin-top:12px; line-height:1.5}
+  .newbest{color:var(--gold); font-weight:900}
+  .toprow{display:flex; gap:8px; justify-content:center; align-items:center; margin:10px 0 2px; flex-wrap:wrap}
+  .walletbox{margin-top:6px; display:flex; gap:8px; justify-content:center; align-items:center; flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🐹 SQUEEK FLAP</h1>
+    <div class="sub" data-i18n="tagline">Run With Squeektoshi — fly with the real hamster wheel on Squeekchain (Sepolia)</div>
+  </header>
+
+  <div class="live" id="livePanel">
+    <div class="row">
+      <span><span class="dot" id="wheelDot"></span><b id="wheelStatus" data-i18n="liveLoading">Loading hamster wheel data…</b></span>
+      <span>RPM: <b id="wheelRpm">—</b></span>
+    </div>
+    <div class="row" style="margin-top:4px">
+      <span>Squeek Block: <b id="blockHeight">—</b></span>
+      <span><span data-i18n="roundLbl">Settled round</span>: <b id="roundId">—</b></span>
+      <span><span data-i18n="modeLbl">Mode</span>: <b id="modeLabel">—</b></span>
+    </div>
+    <div class="note" id="liveNote" data-i18n="liveSrc">Source: api.squeekchain.com/v1/status (read live, no wallet needed). If the network drops, the game runs in offline demo mode.</div>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="game" width="420" height="640"></canvas>
+
+    <div class="overlay" id="menuOverlay">
+      <h2 data-i18n="menuTitle">READY TO FLY?</h2>
+      <p data-i18n="menuTap">Tap / Click / <b>Space</b> to flap.</p>
+      <p data-i18n="menuAvoid">Dodge the bamboo columns, collect the glowing Aura orbs ✨</p>
+      <p data-i18n="menuItems">Power-ups drift in sometimes: 🦸 <b>Super</b> and 🛡 <b>Shield</b> — grab one to activate it instantly!</p>
+      <p class="small" data-i18n="menuMap">The obstacle map is generated from the real round — everyone playing the same round gets the same map.</p>
+      <div class="toprow"><button class="skinbtn" id="langBtn">🌐 Tiếng Việt</button></div>
+      <div class="walletbox"><button class="skinbtn" id="walletBtn">🦊 Connect Wallet</button><button class="skinbtn" id="walletSwitchBtn" style="display:none">Switch to Sepolia</button><button class="skinbtn" id="walletDcBtn" style="display:none">Disconnect</button></div>
+      <p class="small" id="walletInfo"></p>
+      <button class="btn" id="startBtn" data-i18n="startBtn">▶ START</button>
+      <p class="small" id="bestLabel">Your best: 0 points</p>
+      <p class="small" id="missionsLabel">🎯 Nhiệm vụ round này: —</p>
+      <div class="chalbox">
+        <p class="small" data-i18n="chalIntro">⚔️ <b>Friend challenge</b> — enter a friend's code to duel on their exact map.</p>
+        <div class="chalrow">
+          <input id="myName" type="text" maxlength="14" placeholder="Your name" data-i18n-ph="yourName">
+          <input id="chalInput" type="text" placeholder="Paste a challenge code..." data-i18n-ph="pasteCode">
+          <button class="skinbtn" id="chalLoadBtn" data-i18n="chalAccept">Accept</button>
+        </div>
+        <p class="small" id="chalStatus"></p>
+      </div>
+      <div class="skinbox">
+        <p class="small"><span data-i18n="skinIntro1">🎨 <b>Hamster skins</b> — unlocked with lifetime Aura: </span><b id="skinAuraTotal">0</b><span data-i18n="skinIntro2"> ✨ (looks only, no power change)</span></p>
+        <div id="skinList"></div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="overOverlay">
+      <h2 data-i18n="overTitle">💥 YOU CRASHED!</h2>
+      <p><span data-i18n="scoreLbl">Score</span>: <b id="finalScore" style="font-size:22px;color:var(--gold)">0</b> &nbsp;•&nbsp; <span data-i18n="auraLbl">Aura</span>: <b id="finalAura">0</b> ✨</p>
+      <p id="newBestLabel" class="newbest" style="display:none" data-i18n="newBest">★ NEW RECORD! ★</p>
+      <div class="receipt" id="receipt"></div>
+      <button class="btn" id="retryBtn" data-i18n="retryBtn">↻ PLAY AGAIN</button>
+      <button class="btn ghost" id="chalGenBtn" data-i18n="chalGenBtn">🔗 Create challenge code</button>
+      <p class="small" id="chalOut" style="display:none; word-break:break-all; text-align:left"></p>
+      <button class="btn ghost" id="menuBtn" data-i18n="menuBtn">Back to main menu</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="pauseBtn">⏸ Pause</button>
+    <button id="soundBtn">🔊 Sound: On</button>
+    <button id="restartBtn" data-i18n="restartBtn">↻ Restart</button>
+  </div>
+
+  <div class="howto">
+    <h3 data-i18n="howtoTitle">🎮 How to play &amp; what makes it different from regular Flappy</h3>
+    <div id="howtoVi">
+    <ul>
+      <li><b>Live Wheel Sync:</b> Squeektoshi thật đang chạy (SPINNING) → trời sáng, game nhanh hơn. Đang ngủ (IDLE) → trời đêm, game chậm và dịu hơn.</li>
+      <li><b>Bản đồ theo round:</b> vật cản sinh từ số round đã settle trên chain — không phải random mỗi máy.</li>
+      <li><b>Biên lai lượt chơi:</b> mỗi lượt ghi lại Block + Round + RPM lúc bắt đầu, ai cũng kiểm chứng được.</li>
+      <li><b>Aura lớn 🌟:</b> cứ nhặt đủ 20 Aura thường sẽ xuất hiện 1 cục Aura lớn, ăn được <b>+2</b>.</li>
+      <li><b>Skill 1 — 🦸 Siêu nhân:</b> ăn item SUPER, chuột bốc <b>hào quang lửa vàng</b> như Super Saiyan, tự bay thẳng qua <b>10 cột</b>, bất tử và hút mọi Aura trên đường. Mới ăn thì bay <b>nhanh +45%</b>, càng gần hết càng <b>chậm dần</b> lại và hào quang nhỏ dần — thấy lửa yếu đi là sắp phải tự bay tiếp!</li>
+      <li><b>❤️ Máu:</b> chuột có <b>2 tim</b> (tối đa 2). Đụng cột/đất: khiên (nếu có) đỡ trước, không thì <b>mất 1 tim</b> và được cứu về giữa khe + bất tử ngắn — mất hết 2 tim mới thua. Tim hiện ở góc trái trên.</li>
+      <li><b>Skill 2 — 🛡 Khiên:</b> ăn item SHIELD được 1 lớp khiên chặn <b>1 lần</b> va chạm vào cột/đất — chặn xong, chuột được cứu và nảy lại vào khe.</li>
+      <li><b>🎁 Hộp quà:</b> thỉnh thoảng ở khe cột có hộp quà bay lơ lửng — bay qua là mở: <b>98% ra +1 tim</b> (đầy máu thì đổi thành +3 Aura), và <b>2% trúng skin</b>: một skin ngẫu nhiên chưa mở khóa sẽ <b>mở vĩnh viễn</b> cho bạn, không cần đủ Aura!</li>
+      <li><b>⚠️ Cảnh báo hết Siêu nhân:</b> còn 3 cột cuối, màn hình nháy viền đỏ + chữ cảnh báo + tiếng bíp — chuẩn bị cầm lại điều khiển!</li>
+      <li><b>⭐ Perfect / 😱 Suýt!:</b> bay qua đúng giữa khe = Perfect (x5 liên tiếp được +2 điểm), bay sát mép = Suýt! — giữ combo để leo điểm nhanh.</li>
+      <li><b>🎯 Nhiệm vụ round:</b> mỗi round có 3 nhiệm vụ riêng (hiện ở màn hình chính), làm xong được ghi nhận lâu dài. Cứ qua mốc 10 điểm là game đổi cảnh + ăn mừng.</li>
+      <li><b>🏁 Vạch kỷ lục:</b> vạch vàng "KỶ LỤC" là quãng đường xa nhất của bạn ở lượt kỷ lục trước — bay qua nó là phá kỷ lục!</li>
+      <li><b>🪂 Phao hạ cánh:</b> hết Siêu nhân không bị "thả rơi" nữa — game đếm ngược TO giữa màn hình ở 3 cột cuối, tô sáng 🎯 khe phải chui vào, rồi cho 0.9 giây hạ cánh an toàn (lái phụ + bất tử). Chạm màn hình là bạn cầm lái ngay.</li>
+      <li><b>🌟 Cột tre vàng:</b> thỉnh thoảng xuất hiện cột tre mạ vàng, khe hẹp hơn một chút — qua được cộng <b>+2 điểm</b>.</li>
+      <li><b>👹 Boss mỗi 30 điểm:</b> cột tre khổng lồ rộng 110px, khe hẹp hơn, vừa trôi lên xuống vừa thở nhẹ, Boss sau khó hơn Boss trước. Có banner báo trước; qua Boss được <b>tổng +5 điểm</b>. Trên cổng Boss không có item skill/Aura lớn — chỉ tối đa 1 Aura thường.</li>
+      <li><b>🔥 Chuỗi Aura:</b> nhặt Aura liên tiếp không ngắt quãng (2.5 giây) để lên chuỗi x2, x3... — mỗi mốc x8 được thưởng +1 Aura.</li>
+      <li><b>🏆 Thành tích trọn đời:</b> 7 huy hiệu lưu vĩnh viễn (100/500 Aura, Perfect x5, 25 lượt chơi...) — mở khóa là có thông báo ăn mừng ngay trong trận.</li>
+      <li><b>🎨 Skin hamster:</b> tổng Aura trọn đời mở khóa ngoại hình mới — càng về sau càng "đổi cả màu lông" cho khác hẳn: 150 🧣 Khăn đỏ • 300 🕶️ Kính râm • 500 👑 Vương miện • 700 🫧 Chấm bi (lông hồng chấm trắng) • 900 🌙 Bóng đêm • 1.200 🇻🇳 Việt Nam (lông đỏ sao vàng) • 1.500 ✨ Hoàng kim • 1.800 🇯🇵 Nhật Bản (lông trắng đĩa đỏ) • 2.200 🇺🇸 Hoa Kỳ (sọc sao) • 2.600 🌈 Cầu vồng. Đổi skin ở màn hình chính — chỉ đổi hình cho đẹp, không đổi sức mạnh.</li>
+      <li><b>⚔️ Thách đấu bạn bè:</b> cuối lượt bấm "🔗 Tạo mã thách đấu" để lấy mã (chứa điểm + seed bản đồ của bạn) gửi cho bạn bè. Họ dán mã ở màn hình chính là chơi <b>đúng bản đồ của bạn</b>, có vạch đích ghi tên bạn và mục tiêu điểm ngay trong trận; cuối lượt game phán Thắng/Thua rõ ràng. Đấu đi đấu lại bằng mã mới thoải mái — không cần tài khoản, không cần link.</li>
+      <li><b>🎋 Đoạn Kẹp Tre:</b> khi bạn <b>chọn bay qua cổng xoáy màu XANH LÁ CÂY</b> xuất hiện ở khe cột (bay tránh qua là bỏ qua, không bắt buộc), hai vách tre khổng lồ ập vào <b>chiếm gần hết màn hình</b>, khe trống ở giữa <b>hẹp dần từ 320px xuống 128px</b> trong ~9 giây — và khe còn <b>trôi lên/xuống liên tục</b> nên phải đuổi theo vòng mục tiêu vàng chứ không đứng yên được. Chuột bị kéo chìm xuống liên tục — phải <b>nhấn Space/chạm thật nhanh</b> để giữ chuột trong vòng. Giữ trong vòng đủ 2 giây liên tục được <b>+1 Aura (chuỗi Giữ Chuẩn 🔥)</b>, dọc khe còn có <b>Aura trôi qua</b> để liều ăn thêm, và 3 giây cuối là <b>⚡ ÉP TỐI ĐA</b>: khe thu nhanh hơn hẳn (xuống 120px, đồng thời khe trôi chậm lại cho bạn tập trung chịu ép). Đụng vách thì khiên đỡ trước, không có khiên thì mất 1 tim và bị bật về giữa. Sống sót hết đoạn được thưởng <b>+5 điểm, +3 Aura</b>.</li>
+      <li><b>🌀 Cổng mini game — 🎡 Chạy Trong Lồng:</b> thỉnh thoảng ở khe cột xuất hiện <b>vòng xoáy cổng màu TÍM</b> (tối đa 2 lần/lượt). Bay xuyên qua tâm vòng là vào mini game: chuột chạy dọc <b>mặt trong của một cái lồng tròn khổng lồ</b> đang quay trong <b>10 giây</b> — Aura và vật cản (tre, đá) bám trên vành trong trôi về phía chuột: <b>Aura thì ăn, vật cản thì chạm để nhảy né</b> (nhảy hướng vào tâm lồng). Có <b>3 tim</b> riêng; hết giờ hoặc hết tim là quay lại trận chính (bất tử 1,5 giây + đặt vào giữa khe cho an toàn), toàn bộ Aura hái được cộng thẳng vào lượt chính.</li>
+      <li><b>🌀 Độ khó tăng ở 30 Aura:</b> từ mốc 30 Aura trong một lượt, các cột tre sẽ <b>"thở"</b> — khe dãn rộng ra (tối đa <b>+50px</b>) rồi thu hẹp lại (chỉ <b>−20px</b> so với khe gốc) theo chu kỳ ~4,4 giây, nên lúc hẹp nhất vẫn dễ thở. Cột đang thở có <b>viền cam nhấp nháy + dấu 🌀</b> ở khe, cột đã có sẵn trên màn hình cũng bắt đầu thở ngay khi chạm mốc, và cuối lượt có đếm số cột thở đã qua. Góc trái dưới màn hình có đếm tiến độ x/30 Aura để bạn thấy trước.</li>
+      <li><b>Aura ✨ trong game</b> là điểm nhặt khi chơi của riêng game này — <b>không</b> tự cộng vào Aura Genesis chính thức trên squeekchain.com (Aura chính thức chỉ do team Squeekchain cấp qua các badge/hoạt động của họ).</li>
+      <li>Phím: <b>Space / ↑</b> bay • <b>P</b> tạm dừng • <b>M</b> tắt tiếng • <b>R</b> chơi lại.</li>
+    </ul>
+    </div>
+    <div id="howtoEn" style="display:none">
+    <ul>
+      <li><b>Live Wheel Sync:</b> the real Squeektoshi is running (SPINNING) → bright sky, faster game. Asleep (IDLE) → night sky, slower, calmer game.</li>
+      <li><b>Round-seeded map:</b> obstacles are generated from the settled round number on-chain — not random per device.</li>
+      <li><b>Run receipt:</b> every run logs the Block + Round + RPM at start — anyone can verify it.</li>
+      <li><b>Big Aura 🌟:</b> collect 20 regular Aura to spawn 1 Big Aura — worth <b>+2</b>.</li>
+      <li><b>Skill 1 — 🦸 Super:</b> eat a SUPER item and the hamster blazes with a <b>golden flame aura</b> like a Super Saiyan, auto-flying straight through <b>10 columns</b>, invincible, vacuuming every Aura on the way. Fresh Super flies <b>+45% faster</b>; as it runs out it <b>gradually slows down</b> and the flame shrinks — when the fire weakens, get ready to fly yourself!</li>
+      <li><b>❤️ HP:</b> the hamster has <b>2 hearts</b> (max 2). Hit a column/ground: a shield (if you have one) blocks first, otherwise you <b>lose 1 heart</b> and get rescued to the gap centre with brief invincibility — lose both hearts to game over. Hearts show top-left.</li>
+      <li><b>Skill 2 — 🛡 Shield:</b> eat a SHIELD item for 1 shield layer that blocks <b>1 hit</b> on a column/ground — after blocking, the hamster is rescued back into the gap.</li>
+      <li><b>🎁 Gift box:</b> sometimes a gift box floats in a gap — fly through to open it: <b>98% gives +1 heart</b> (at full HP it converts to +3 Aura), and <b>2% wins a skin</b>: a random locked skin <b>unlocks forever</b> for you — no Aura needed!</li>
+      <li><b>⚠️ Super ending warning:</b> with 3 columns left, the screen flashes a red border + warning text + beeps — get ready to take back control!</li>
+      <li><b>⭐ Perfect / 😱 Near miss!:</b> pass dead-centre through a gap = Perfect (x5 in a row = +2 points); skim the edge = Near miss! — keep the combo to climb fast.</li>
+      <li><b>🎯 Round missions:</b> each round has 3 missions of its own (shown on the main menu), completed missions are recorded permanently. Every 10-point milestone changes the scene + celebrates.</li>
+      <li><b>🏁 Record line:</b> the golden "RECORD" line is your farthest distance from your previous record run — fly past it to break the record!</li>
+      <li><b>🪂 Landing float:</b> when Super ends you are no longer dropped — the game shows a BIG countdown in the last 3 columns, highlights the 🎯 gap to aim for, then gives 0.9s of safe landing (assisted steering + invincible). Tap the screen to take control instantly.</li>
+      <li><b>🌟 Golden bamboo:</b> sometimes golden bamboo columns appear with a slightly narrower gap — pass them for <b>+2 points</b>.</li>
+      <li><b>👹 Boss every 30 points:</b> a giant 110px-wide bamboo column, narrower gap, drifting up/down while breathing lightly; each Boss is harder than the last. A banner warns you first; passing a Boss scores <b>+5 total</b>. Boss gates carry no skill items/Big Aura — at most 1 regular Aura.</li>
+      <li><b>🔥 Aura chain:</b> collect Aura back-to-back without a break (2.5s) to build a chain x2, x3... — every x8 milestone grants +1 bonus Aura.</li>
+      <li><b>🏆 Lifetime achievements:</b> 7 badges saved forever (100/500 Aura, Perfect x5, 25 runs...) — unlocking one celebrates right in the run.</li>
+      <li><b>🎨 Hamster skins:</b> lifetime Aura unlocks new looks — later ones change the whole fur: 150 🧣 Red Scarf • 300 🕶️ Shades • 500 👑 Crown • 700 🫧 Polka Dot (pink fur, white dots) • 900 🌙 Night • 1,200 🇻🇳 Vietnam (red fur, gold star) • 1,500 ✨ Golden • 1,800 🇯🇵 Japan (white fur, red disc) • 2,200 🇺🇸 USA (stars &amp; stripes) • 2,600 🌈 Rainbow. Change skins on the main menu — looks only, no power change.</li>
+      <li><b>⚔️ Friend challenges:</b> after a run, press "🔗 Create challenge code" to get a code (holds your score + map seed) and send it to friends. They paste it on the main menu to play <b>your exact map</b>, with a finish line bearing your name and your score target in-run; the game calls Win/Lose clearly at the end. Rematch with fresh codes anytime — no account, no link needed.</li>
+      <li><b>🎋 Bamboo Squeeze:</b> when you <b>choose to fly through the GREEN swirl portal</b> in a gap (fly past to skip — never forced), two giant bamboo walls slam in <b>covering almost the whole screen</b>, and the middle gap <b>narrows from 320px to 128px</b> over ~9 seconds — and the gap <b>keeps drifting up/down</b>, so you must chase the golden target ring instead of hovering still. Gravity drags the hamster down constantly — <b>tap Space/tap FAST</b> to stay in the ring. Stay in the ring 2 full seconds = <b>+1 Aura (On-Target chain 🔥)</b>; Aura orbs drift along the gap for risky pickups; and the last 3 seconds are <b>⚡ MAX SQUEEZE</b>: the gap shrinks faster (down to 120px) while drifting slows so you can focus on surviving the squeeze. Hit a wall: shield blocks first, else lose 1 heart and bounce back to the middle. Survive it all for <b>+5 points, +3 Aura</b>.</li>
+      <li><b>🌀 Mini-game portal — 🎡 Cage Runner:</b> sometimes a <b>PURPLE swirl portal</b> appears in a gap (max 2 per run). Fly through its centre to enter the mini-game: the hamster runs along the <b>inside of a giant rotating cage</b> for <b>10 seconds</b> — Aura and obstacles (bamboo, rocks) ride the inner rim toward the hamster: <b>eat the Aura, tap to jump the obstacles</b> (jumping toward the cage centre). It has <b>3 hearts</b> of its own; when time or hearts run out you return to the main run (1.5s invincible + placed at the gap centre), and all Aura collected is added straight to your run.</li>
+      <li><b>🌀 Harder at 30 Aura:</b> from 30 Aura in a run, bamboo columns <b>"breathe"</b> — the gap widens (up to <b>+50px</b>) then narrows (only <b>−20px</b> vs base) on a ~4.4s cycle, so even the narrowest moment stays fair. Breathing columns have a <b>flashing orange outline + a 🌀 mark</b> at the gap; columns already on screen start breathing the moment you hit the mark, and the receipt counts how many you passed. Bottom-left shows your x/30 Aura progress.</li>
+      <li><b>Aura ✨ in this game</b> is the game's own collectible points — it does <b>not</b> add to official Genesis Aura on squeekchain.com (official Aura is granted only by the Squeekchain team via their badges/activities).</li>
+      <li>Keys: <b>Space / ↑</b> fly • <b>P</b> pause • <b>M</b> mute • <b>R</b> restart.</li>
+    </ul>
+    </div>
+  </div>
+
+  <footer>
+    <span data-i18n="footer">Playtest prototype to experience the gameplay — not the official IMD / Buildooooor submission.<br>Fan-made community prototype • Data: Squeekchain public API (Sepolia testnet)</span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   SQUEEK FLAP — prototype
+   - Pixel hamster drawn procedurally on an offscreen canvas
+   - Live data: GET https://api.squeekchain.com/v1/status
+   - Obstacle map seeded by the settled SqueekCore round
+   ============================================================ */
+const W = 420, H = 640, GROUND_H = 72, PLAY_H = H - GROUND_H;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const $ = id => document.getElementById(id);
+const menuOverlay = $('menuOverlay'), overOverlay = $('overOverlay');
+/* ---------------- Language (default English) + Wallet ---------------- */
+let lang = 'en';
+try { const sl = localStorage.getItem('squeekLang'); if (sl === 'vi' || sl === 'en') lang = sl; } catch (e) {}
+const STR = {
+en: {
+  tagline: 'Run With Squeektoshi — fly with the real hamster wheel on Squeekchain (Sepolia)',
+  liveSrc: 'Source: api.squeekchain.com/v1/status (read live, no wallet needed). If the network drops, the game runs in offline demo mode.',
+  liveLoading: 'Loading hamster wheel data…', roundLbl: 'Settled round', modeLbl: 'Mode',
+  liveOffTitle: 'Offline — demo mode',
+  liveOffNote: "Can't reach api.squeekchain.com right now — the game still plays normally in offline demo mode, using a daily seed for the map.",
+  wheelRun: 'Squeektoshi is RUNNING 🏃', wheelSleep: 'Squeektoshi is ASLEEP 💤',
+  modeDay: 'Day / Fast ☀️', modeNight: 'Night / Slow 🌙',
+  liveUpdated: 'Updated: {t} • Total work recorded: {w} • Next block: {p}%',
+  menuTitle: 'READY TO FLY?', menuTap: 'Tap / Click / <b>Space</b> to flap.',
+  menuAvoid: 'Dodge the bamboo columns, collect the glowing Aura orbs ✨',
+  menuItems: 'Power-ups drift in sometimes: 🦸 <b>Super</b> and 🛡 <b>Shield</b> — grab one to activate it instantly!',
+  menuMap: 'The obstacle map is generated from the real round — everyone playing the same round gets the same map.',
+  startBtn: '▶ START', bestLine: 'Your best: {b} points • Missions completed: {m} • 🏆 Achievements: {a}/7',
+  bestShort: 'Your best: {b} points', missionsLbl: "🎯 This round's missions: ",
+  chalIntro: "⚔️ <b>Friend challenge</b> — enter a friend's code to duel on their exact map.",
+  yourName: 'Your name', pasteCode: 'Paste a challenge code...', chalAccept: 'Accept',
+  skinIntro1: '🎨 <b>Hamster skins</b> — unlocked with lifetime Aura: ', skinIntro2: ' ✨ (looks only, no power change)',
+  overTitle: '💥 YOU CRASHED!', scoreLbl: 'Score', auraLbl: 'Aura', newBest: '★ NEW RECORD! ★',
+  retryBtn: '↻ PLAY AGAIN', chalGenBtn: '🔗 Create challenge code', menuBtn: 'Back to main menu',
+  restartBtn: '↻ Restart', pause: '⏸ Pause', resume: '▶ Resume', soundOn: '🔊 Sound: On', soundOff: '🔇 Sound: Off',
+  howtoTitle: "🎮 How to play &amp; what makes it different from regular Flappy",
+  footer: 'Playtest prototype to experience the gameplay — not the official IMD / Buildooooor submission.<br>Fan-made community prototype • Data: Squeekchain public API (Sepolia testnet)',
+  skinUnlocked: 'Unlocked ✓', skinGifted: '🎁 Won from a gift box ✓', skinDefault: 'Default skin',
+  skinLeft: '{n} to go', skinEquip: 'Equip this skin', skinWearing: 'EQUIPPED ✓',
+  chalActive: '🏆 <b>{name}</b> challenges you to beat <b>{s} points</b> ({m} m) — press START to duel on their exact map!',
+  chalClearBtn: 'Clear challenge', chalCleared: "Challenge cleared — playing the current round's map.",
+  chalInvalid: "⚠️ Invalid code — double-check the code your friend sent.",
+  chalAnon: 'Player', chalShare: '📋 Send this code to your friends: {code} — with the message: "I scored {s} points in Squeek Flap — enter this code to duel me on my exact map!"',
+  connectWallet: '🦊 Connect Wallet', walletHint: 'Wallet not connected — optional, the game plays fine without one.',
+  walletOk: 'Connected • Sepolia testnet ✓ (Squeekchain network)', walletWrongNet: '⚠️ Wrong network — Squeekchain runs on Sepolia testnet',
+  switchNet: 'Switch to Sepolia', disconnect: 'Disconnect',
+  noWallet: 'No wallet found — install MetaMask to connect (or just play, the game works fine without a wallet).',
+  walletRejected: 'Connection request was rejected in the wallet.',
+  rDist: '📏 Distance flown', rAura: '✨ Aura collected in game', rBig: '🌟 Big Aura (+2) collected', rSuper: '🦸 Times turned Super',
+  rShield: '🛡️ Shield blocks', rGolden: '🌟 Golden columns passed (+2 each)', rBreath: '🌀 Breathing columns passed',
+  rBoss: '👹 Bosses beaten (+5 pts each)', rBossVal: '{n}', rDiedBoss: '💀 Fell to', rBossN: 'Boss #{n}',
+  rNewSkins: '🎨 New skin unlocked!', rEquipHint: '(equip it from the main menu)',
+  rChal: '⚔️ Challenge vs {name} (target {s} points)', rWin: '🏆 WON {a}–{b}', rLose: 'Lost {a}–{b}',
+  rWheelAura: '🎡 Aura from Cage Runner (via portal)', rGifts: '🎁 Gift boxes opened', rGiftSkin: ' • 🎁✨ won skin {name}',
+  rCrush: '🎋 Bamboo Squeeze sections cleared', rCrushAura: ' • +{n} Aura picked inside',
+  rChain: '🔥 Longest Aura chain', rRound: '🎡 Round (map seed)', rBlock: '🧱 Squeek Block at start',
+  rRpm: '💨 Wheel RPM at start', rTime: '⏱ Flight time', rMisHead: '— 🎯 Round missions —', rMisN: '{n}/3 done', rDone: 'Done', rTodo: 'Not yet',
+  uTimes: 'times', uCols: 'columns', uOrbs: 'orbs', uSecs: 's',
+  fShield: '🛡 Shield blocked!', fHeart: '💔 Lost a heart! {n} left', fSuper: '🦸 SUPER! Fly straight through 10 columns',
+  fShieldGet: '🛡 SHIELD — blocks 1 hit', fBreathOn: '⚠️ 30 AURA! Bamboo columns start BREATHING — gaps widen and shrink!',
+  fPerfect: 'Perfect combo: +2 points!', fMilestone: '🎉 {n} POINT MILESTONE! New scene!', fSuperEnd: '⚠️ Super is ending!',
+  fChain: '🔥 Chain x{n}', fChainBonus: '🔥 Chain x{n}: bonus +1 Aura!', fGiftFull: '🎁 Full HP → +3 Aura',
+  fGiftSkin: '🎁 The gift box opened skin {name} — unlocked forever!', fSkinUnlock: '🎨 Skin unlocked: {names}!',
+  achLine: '🏆 Achievement unlocked: {icon} {text}',
+  fCrushTitle: '🎋 BAMBOO SQUEEZE!', fCrushHint: 'Tap SPACE / tap RAPIDLY to keep the hamster in the middle!',
+  fCrushDone: '🎉 SQUEEZE CLEARED! +5 points • +3 Aura', fCrushCombo: '🔥 On target x{n}: +1 Aura', fSurge: '⚡ MAX SQUEEZE!',
+  hudCrushTitle: '🎋 SQUEEZE — ⏱ {t}s', hudCrushScore: 'Score {s}', hudCrushCombo: '🔥 On target x{n}', hudSurge: '⚡ MAX SQUEEZE!',
+  fWheelHint: 'Collect Aura ✨ • Dodge obstacles • Tap to jump', fWheelDone: '🎡 +{n} Aura from the mini-game!',
+  fWheelHurt: '💥 Ouch! {n} hearts left', wheelCaption: 'CAGE RUNNER — tap / Space to jump, eat Aura, dodge obstacles!',
+  hudShield: '🛡 Shield x{n}', hudSuper: '🦸 SUPER — {n} columns left',
+  hudSuperSub: 'When Super ends you get a 🪂 landing float — aim for the 🎯 golden gap!',
+  hudBigAura: '🌟 Big Aura (+2): {n}/20', hudBreathProg: '🌀 Harder mode (breathing columns): {n}/30 Aura',
+  hudScore: 'Score {s}', hudChal: '🎯 {s} points — {name}', hudChalWin: '🏆 YOU PASSED {name}',
+  portalMini: 'MINI GAME', portalCrush: '🎋 SQUEEZE', recLine: '🏁 RECORD', recShort: 'RECORD', fGhostChal: '🏁 PASSED {name}!', fGhostRec: '🎉 YOU BEAT YOUR OLD RECORD!',
+  fGolden: '🌟 GOLDEN COLUMN +2!', fBossDown: '👹 BOSS DOWN! +5 POINTS TOTAL', fBossWarn: '⚠️ BOSS AHEAD!', fNearMiss: '😱 SO CLOSE!', fHandback: '🪂 SAFE LANDING!', fBigAura: '+2 BIG AURA!', fChalPassed: '🎉 YOU PASSED {name}!', fGiftSkinShort: '🎁✨ SKIN WON: {name}!', fInZone: 'STAY CENTRED', hudCrushTap: 'TAP SPACE / TAP FAST!', fWheelTitle: '🎡 CAGE RUNNER!', giftLbl: 'GIFT BOX', landingLbl: '🎯 LANDING GAP', handbackLbl: '🪂 SAFE LANDING', hudSuperWarn: '⚠️ SUPER ENDING — {n} COLUMNS LEFT!', hudSuperCount: '⚠ {n} LEFT!', hudBreathing: '🌀 BREATHING COLUMNS ACTIVE!', pausedLbl: '⏸ PAUSED'
+},
+vi: {
+  tagline: 'Run With Squeektoshi — bay cùng vòng quay hamster thật trên Squeekchain (Sepolia)',
+  liveSrc: 'Nguồn: api.squeekchain.com/v1/status (đọc trực tiếp, không cần ví). Nếu mất mạng, game tự chạy chế độ demo offline.',
+  liveLoading: 'Đang đọc dữ liệu bánh xe…', roundLbl: 'Round đã settle', modeLbl: 'Chế độ',
+  liveOffTitle: 'Offline — chế độ demo',
+  liveOffNote: 'Không đọc được api.squeekchain.com lúc này — game vẫn chơi bình thường ở chế độ demo offline, bản đồ dùng seed ngày hôm nay.',
+  wheelRun: 'Squeektoshi đang CHẠY 🏃', wheelSleep: 'Squeektoshi đang NGỦ 💤',
+  modeDay: 'Ngày / Nhanh ☀️', modeNight: 'Đêm / Chậm 🌙',
+  liveUpdated: 'Cập nhật: {t} • Tổng work đã ghi: {w} • Block tiếp theo: {p}%',
+  menuTitle: 'SẴN SÀNG BAY?', menuTap: 'Chạm / Click / phím <b>Space</b> để vỗ cánh.',
+  menuAvoid: 'Né cột tre, nhặt các quầng Aura phát sáng ✨',
+  menuItems: 'Thỉnh thoảng có item bay lẫn vào: 🦸 <b>Siêu nhân</b> và 🛡 <b>Khiên</b> — ăn là kích hoạt ngay!',
+  menuMap: 'Bản đồ vật cản được sinh từ round thật — mọi người chơi cùng 1 round sẽ gặp cùng 1 bản đồ.',
+  startBtn: '▶ BẮT ĐẦU', bestLine: 'Kỷ lục của bạn: {b} điểm • Nhiệm vụ đã hoàn thành: {m} • 🏆 Thành tích: {a}/7',
+  bestShort: 'Kỷ lục của bạn: {b} điểm', missionsLbl: '🎯 Nhiệm vụ round này: ',
+  chalIntro: '⚔️ <b>Thách đấu bạn bè</b> — nhập mã của bạn bè để đấu trên đúng bản đồ của họ.',
+  yourName: 'Tên của bạn', pasteCode: 'Dán mã thách đấu...', chalAccept: 'Nhận thách',
+  skinIntro1: '🎨 <b>Skin hamster</b> — mở khóa bằng tổng Aura trọn đời: ', skinIntro2: ' ✨ (chỉ đổi hình, không đổi sức mạnh)',
+  overTitle: '💥 RƠI RỒI!', scoreLbl: 'Điểm', auraLbl: 'Aura', newBest: '★ KỶ LỤC MỚI! ★',
+  retryBtn: '↻ CHƠI LẠI', chalGenBtn: '🔗 Tạo mã thách đấu', menuBtn: 'Về màn hình chính',
+  restartBtn: '↻ Chơi lại', pause: '⏸ Tạm dừng', resume: '▶ Tiếp tục', soundOn: '🔊 Âm thanh: Bật', soundOff: '🔇 Âm thanh: Tắt',
+  howtoTitle: '🎮 Cách chơi &amp; điểm khác Flappy thường',
+  footer: 'Bản chơi thử (prototype) để trải nghiệm gameplay — chưa phải bản nộp IMD / Buildooooor chính thức.<br>Fan-made community prototype • Dữ liệu: Squeekchain public API (Sepolia testnet)',
+  skinUnlocked: 'Đã mở khóa ✓', skinGifted: '🎁 Trúng từ hộp quà ✓', skinDefault: 'Skin mặc định',
+  skinLeft: 'thiếu {n}', skinEquip: 'Mặc skin này', skinWearing: 'ĐANG MẶC ✓',
+  chalActive: '🏆 <b>{name}</b> thách bạn vượt <b>{s} điểm</b> ({m} m) — bấm BẮT ĐẦU để đấu trên đúng bản đồ của họ!',
+  chalClearBtn: 'Xóa thách đấu', chalCleared: 'Đã xóa thách đấu — chơi bản đồ round hiện tại.',
+  chalInvalid: '⚠️ Mã không hợp lệ — kiểm tra lại mã bạn bè gửi nhé.',
+  chalAnon: 'Bạn', chalShare: '📋 Gửi mã này cho bạn bè: {code} — kèm lời nhắn: "Tao được {s} điểm ở Squeek Flap, nhập mã này vào game để đấu trên đúng bản đồ của tao!"',
+  connectWallet: '🦊 Kết nối ví', walletHint: 'Chưa kết nối ví — không bắt buộc, không có ví vẫn chơi bình thường.',
+  walletOk: 'Đã kết nối • Mạng Sepolia testnet ✓ (mạng của Squeekchain)', walletWrongNet: '⚠️ Sai mạng — Squeekchain chạy trên Sepolia testnet',
+  switchNet: 'Chuyển sang Sepolia', disconnect: 'Ngắt kết nối',
+  noWallet: 'Không thấy ví nào — hãy cài MetaMask để kết nối (hoặc cứ chơi, game không cần ví vẫn chạy bình thường).',
+  walletRejected: 'Bạn đã từ chối yêu cầu kết nối trong ví.',
+  rDist: '📏 Quãng đường bay', rAura: '✨ Aura trong game nhặt được', rBig: '🌟 Aura lớn (+2) đã nhặt', rSuper: '🦸 Số lần hóa Siêu nhân',
+  rShield: '🛡️ Khiên đã chặn', rGolden: '🌟 Cột vàng đã qua (+2/cột)', rBreath: '🌀 Cột thở đã qua',
+  rBoss: '👹 Boss đã hạ (+5 điểm/con)', rBossVal: '{n} con', rDiedBoss: '💀 Gục trước', rBossN: 'Boss số {n}',
+  rNewSkins: '🎨 Mở khóa skin mới!', rEquipHint: '(về màn hình chính để mặc)',
+  rChal: '⚔️ Thách đấu {name} (mục tiêu {s} điểm)', rWin: '🏆 THẮNG {a}–{b}', rLose: 'Thua {a}–{b}',
+  rWheelAura: '🎡 Aura từ Đua Bánh Xe (qua cổng)', rGifts: '🎁 Hộp quà đã mở', rGiftSkin: ' • 🎁✨ trúng skin {name}',
+  rCrush: '🎋 Đoạn kẹp tre đã qua', rCrushAura: ' • +{n} Aura hái trong đoạn',
+  rChain: '🔥 Chuỗi Aura dài nhất', rRound: '🎡 Round (seed bản đồ)', rBlock: '🧱 Squeek Block lúc bắt đầu',
+  rRpm: '💨 RPM bánh xe lúc bắt đầu', rTime: '⏱ Thời gian bay', rMisHead: '— 🎯 Nhiệm vụ round —', rMisN: '{n}/3 xong', rDone: 'Xong', rTodo: 'Chưa',
+  uTimes: 'lần', uCols: 'cột', uOrbs: 'cục', uSecs: 'giây',
+  fShield: '🛡 Khiên chặn!', fHeart: '💔 Mất 1 tim! Còn {n}', fSuper: '🦸 SIÊU NHÂN! Bay thẳng 10 cột',
+  fShieldGet: '🛡 KHIÊN — chặn 1 lần va chạm', fBreathOn: '⚠️ 30 AURA! Cột tre bắt đầu THỞ — khe dãn ra, thu vào!',
+  fPerfect: 'Combo Perfect: +2 điểm!', fMilestone: '🎉 MỐC {n} ĐIỂM! Đổi cảnh!', fSuperEnd: '⚠️ Sắp hết Siêu nhân!',
+  fChain: '🔥 Chuỗi x{n}', fChainBonus: '🔥 Chuỗi x{n}: thưởng +1 Aura!', fGiftFull: '🎁 Đầy máu → +3 Aura',
+  fGiftSkin: '🎁 Hộp quà mở ra skin {name} — mở khóa vĩnh viễn!', fSkinUnlock: 'Mở khóa skin: {names}!',
+  achLine: '🏆 Thành tích mở khóa: {icon} {text}',
+  fCrushTitle: '🎋 ĐOẠN KẸP TRE!', fCrushHint: 'Nhấn SPACE / chạm LIÊN TỤC để giữ chuột ở giữa!',
+  fCrushDone: '🎉 QUA ĐOẠN KẸP TRE! +5 điểm • +3 Aura', fCrushCombo: '🔥 Giữ chuẩn x{n}: +1 Aura', fSurge: '⚡ ÉP TỐI ĐA!',
+  hudCrushTitle: '🎋 KẸP TRE — ⏱ {t}s', hudCrushScore: 'Điểm {s}', hudCrushCombo: '🔥 Giữ chuẩn x{n}', hudSurge: '⚡ ÉP TỐI ĐA!',
+  fWheelHint: 'Ăn Aura ✨ • Né vật cản • Chạm để nhảy', fWheelDone: '🎡 +{n} Aura từ mini game!',
+  fWheelHurt: '💥 Đau! Còn {n} tim', wheelCaption: 'CHẠY TRONG LỒNG — chạm / Space để nhảy, ăn Aura, né vật cản!',
+  hudShield: '🛡 Khiên x{n}', hudSuper: '🦸 SIÊU NHÂN — còn {n} cột',
+  hudSuperSub: 'Hết Siêu nhân sẽ có 🪂 phao hạ cánh — nhắm vào 🎯 khe vàng!',
+  hudBigAura: '🌟 Aura lớn (+2): {n}/20', hudBreathProg: '🌀 Tăng độ khó (cột thở): {n}/30 Aura',
+  hudScore: 'Điểm {s}', hudChal: '🎯 {s} điểm — {name}', hudChalWin: '🏆 ĐÃ VƯỢT {name}',
+  portalMini: 'MINI GAME', portalCrush: '🎋 KẸP TRE', recLine: '🏁 KỶ LỤC', recShort: 'KỶ LỤC', fGhostChal: '🏁 QUA MỐC CỦA {name}!', fGhostRec: '🎉 VƯỢT KỶ LỤC CŨ!',
+  fGolden: '🌟 CỘT VÀNG +2!', fBossDown: '👹 HẠ BOSS! TỔNG +5 ĐIỂM', fBossWarn: '⚠️ BOSS PHÍA TRƯỚC!', fNearMiss: '😱 SUÝT!', fHandback: '🪂 HẠ CÁNH AN TOÀN!', fBigAura: '+2 AURA LỚN!', fChalPassed: '🎉 VƯỢT QUA {name}!', fGiftSkinShort: '🎁✨ TRÚNG SKIN: {name}!', fInZone: 'GIỮ Ở GIỮA', hudCrushTap: 'NHẤN SPACE / CHẠM THẬT NHANH!', fWheelTitle: '🎡 CHẠY TRONG LỒNG!', giftLbl: 'HỘP QUÀ', landingLbl: '🎯 KHE HẠ CÁNH', handbackLbl: '🪂 HẠ CÁNH AN TOÀN', hudSuperWarn: '⚠️ SẮP HẾT SIÊU NHÂN — CÒN {n} CỘT!', hudSuperCount: '⚠ CÒN {n} CỘT!', hudBreathing: '🌀 CỘT TRE ĐANG THỞ!', pausedLbl: '⏸ TẠM DỪNG'
+} };
+function tt(k, v){ let s = (STR[lang] && STR[lang][k]) || STR.en[k] || k; if (v) for (const key in v) s = s.split('{' + key + '}').join(v[key]); return s; }
+function skinName(k){ return lang === 'en' ? (k.en || k.name) : k.name; }
+function achText(a){ return lang === 'en' ? (a.en || a.text) : a.text; }
+function misText(m){ return lang === 'en' ? (m.en || m.text) : m.text; }
+function applyLang(){
+  if (document.querySelectorAll){
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = tt(el.getAttribute('data-i18n')); });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = tt(el.getAttribute('data-i18n-ph')); });
+  }
+  const hv = $('howtoVi'), he = $('howtoEn');
+  if (hv && he){ hv.style.display = lang === 'vi' ? '' : 'none'; he.style.display = lang === 'vi' ? 'none' : ''; }
+  $('langBtn').textContent = lang === 'vi' ? '🌐 English' : '🌐 Tiếng Việt';
+  $('soundBtn').textContent = soundOn ? tt('soundOn') : tt('soundOff');
+  if (state !== 'paused') $('pauseBtn').textContent = tt('pause');
+}
+function setLang(l){
+  lang = l;
+  try { localStorage.setItem('squeekLang', l); } catch (e) {}
+  applyLang(); renderSkins(); refreshMenuInfo(); renderWallet(); fetchWheel();
+  beep(880, .07, 'square', .05);
+}
+$('langBtn').addEventListener('click', () => setLang(lang === 'vi' ? 'en' : 'vi'));
+
+/* ---------------- Wallet connect (MetaMask / injected, Sepolia) ---------------- */
+let walletAddr = null, walletChain = null;
+const SEPOLIA_HEX = '0xaa36a7'; // 11155111 — Squeekchain contracts live on Sepolia testnet
+function shortAddr(a){ return a.slice(0, 6) + '…' + a.slice(-4); }
+function renderWallet(){
+  const b = $('walletBtn'), info = $('walletInfo'), sw = $('walletSwitchBtn'), dc = $('walletDcBtn');
+  if (!b) return;
+  sw.textContent = tt('switchNet'); dc.textContent = tt('disconnect');
+  if (!walletAddr){
+    b.textContent = tt('connectWallet'); info.textContent = tt('walletHint');
+    sw.style.display = 'none'; dc.style.display = 'none';
+  } else {
+    b.textContent = '✅ ' + shortAddr(walletAddr); dc.style.display = '';
+    if (walletChain === SEPOLIA_HEX){ info.textContent = tt('walletOk'); sw.style.display = 'none'; }
+    else { info.textContent = tt('walletWrongNet'); sw.style.display = ''; }
+  }
+}
+async function connectWallet(){
+  const eth = window.ethereum;
+  if (!eth){ $('walletInfo').textContent = tt('noWallet'); return; }
+  try {
+    const accs = await eth.request({ method: 'eth_requestAccounts' });
+    if (accs && accs[0]) walletAddr = accs[0];
+    walletChain = await eth.request({ method: 'eth_chainId' });
+  } catch (e) { $('walletInfo').textContent = tt('walletRejected'); return; }
+  renderWallet();
+}
+async function switchToSepolia(){
+  const eth = window.ethereum; if (!eth) return;
+  try { await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: SEPOLIA_HEX }] }); walletChain = SEPOLIA_HEX; }
+  catch (e) {
+    if (e && e.code === 4902){
+      try {
+        await eth.request({ method: 'wallet_addEthereumChain', params: [{ chainId: SEPOLIA_HEX, chainName: 'Sepolia', nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 }, rpcUrls: ['https://rpc.sepolia.org'], blockExplorerUrls: ['https://sepolia.etherscan.io'] }] });
+        walletChain = SEPOLIA_HEX;
+      } catch (e2) {}
+    }
+  }
+  renderWallet();
+}
+$('walletBtn').addEventListener('click', connectWallet);
+$('walletSwitchBtn').addEventListener('click', switchToSepolia);
+$('walletDcBtn').addEventListener('click', () => { walletAddr = null; walletChain = null; renderWallet(); });
+if (window.ethereum){
+  window.ethereum.request({ method: 'eth_accounts' }).then(accs => {
+    if (accs && accs[0]){ walletAddr = accs[0]; window.ethereum.request({ method: 'eth_chainId' }).then(c => { walletChain = c; renderWallet(); }).catch(() => {}); }
+  }).catch(() => {});
+  if (window.ethereum.on){
+    window.ethereum.on('accountsChanged', accs => { walletAddr = accs && accs[0] ? accs[0] : null; renderWallet(); });
+    window.ethereum.on('chainChanged', c => { walletChain = c; renderWallet(); });
+  }
+}
+
+
+/* ---------------- Seeded RNG (mulberry32) ---------------- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(str){
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+
+/* ---------------- Live wheel data ---------------- */
+const GENESIS_DAY = 'genesis-prototype';
+let wheel = {
+  online: false, status: 'LOADING', rpm: 0, work: '0',
+  blockHeight: '—', round: null, blockProgress: 0, fetchedAt: null
+};
+async function fetchWheel(){
+  try{
+    const res = await fetch('https://api.squeekchain.com/v1/status', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (!d || !d.measurement) throw new Error('bad payload');
+    wheel.online = true;
+    wheel.status = d.measurement.coreStatus || 'UNKNOWN';           // SPINNING / IDLE
+    wheel.rpm = (d.measurement.rpmMilli || 0) / 1000;
+    wheel.work = d.measurement.cumulativeWorkUnits || '0';
+    wheel.speedMm = d.measurement.speedMmPerSecond || 0;
+    if (d.builder && d.builder.anchor){
+      wheel.blockHeight = d.builder.anchor.blockHeight;
+      wheel.round = parseInt(d.builder.anchor.settledThroughRound, 10);
+      wheel.blockProgress = (parseInt(d.builder.anchor.blockProgress, 10) || 0) / 1e9;
+    }
+    wheel.fetchedAt = new Date();
+  }catch(e){
+    wheel.online = false;
+    wheel.status = 'OFFLINE';
+  }
+  renderLivePanel();
+}
+function isSpinning(){ return wheel.online && wheel.status === 'SPINNING'; }
+function renderLivePanel(){
+  const dot = $('wheelDot');
+  if (!wheel.online){
+    dot.className = 'dot off';
+    $('wheelStatus').textContent = tt('liveOffTitle');
+    $('wheelRpm').textContent = '—';
+    $('modeLabel').textContent = 'Demo';
+    $('liveNote').textContent = tt('liveOffNote');
+    return;
+  }
+  dot.className = 'dot ' + (isSpinning() ? 'on' : 'off');
+  $('wheelStatus').textContent = isSpinning() ? tt('wheelRun') : tt('wheelSleep');
+  $('wheelRpm').textContent = wheel.rpm.toFixed(1);
+  $('blockHeight').textContent = '#' + wheel.blockHeight;
+  $('roundId').textContent = wheel.round != null ? '#' + wheel.round : '—';
+  $('modeLabel').textContent = isSpinning() ? tt('modeDay') : tt('modeNight');
+  $('liveNote').textContent = tt('liveUpdated', { t: wheel.fetchedAt ? wheel.fetchedAt.toLocaleTimeString(lang === 'vi' ? 'vi-VN' : 'en-US') : '—', w: wheel.work, p: Math.round(wheel.blockProgress * 100) });
+}
+fetchWheel();
+setInterval(fetchWheel, 15000);
+
+/* Map seed: settled round when online, otherwise the calendar day */
+/* Friend challenges: a code carries {name, score, meters, seed}.
+   While a challenge is loaded, the map seed IS the challenger's seed —
+   same map for both players, so the duel is perfectly fair. */
+let pendingChallenge = null, activeChallenge = null, challengeWon = false, runSeed = 0;
+function chalEncode(o){ return btoa(unescape(encodeURIComponent(JSON.stringify(o)))); }
+function chalDecode(str){
+  const o = JSON.parse(decodeURIComponent(escape(atob(String(str).trim()))));
+  if (typeof o.name !== 'string' || typeof o.score !== 'number' || typeof o.seed !== 'number') throw new Error('bad code');
+  return { name: o.name.slice(0, 24), score: o.score, meters: +o.meters || 0, seed: o.seed >>> 0 };
+}
+function escHtml(t){ return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function currentSeed(){
+  if (pendingChallenge) return pendingChallenge.seed;
+  if (wheel.online && wheel.round != null) return hashSeed('squeek-round-' + wheel.round);
+  return hashSeed('squeek-day-' + new Date().toISOString().slice(0,10) + GENESIS_DAY);
+}
+
+/* ---------------- Sound (WebAudio, no files) ---------------- */
+let audioCtx = null, soundOn = true;
+function beep(freq, dur, type, vol, when, slideTo){
+  if (!soundOn) return;
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime + (when || 0);
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || 'square'; o.frequency.setValueAtTime(freq, t);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(vol || 0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur);
+  }catch(e){ /* sound is optional */ }
+}
+const sndFlap = () => { beep(520, .09, 'square', .035, 0, 880); };
+const sndAura = () => { beep(988, .07, 'square', .05); beep(1319, .12, 'square', .05, .07); };
+const sndScore = () => { beep(784, .08, 'sine', .05); };
+const sndHit = () => { beep(160, .25, 'sawtooth', .07, 0, 60); };
+const sndBig = () => { beep(1319, .09, 'square', .05); beep(1568, .14, 'square', .05, .08); };
+const sndSuper = () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, .11, 'square', .05, i * .07)); };
+const sndShield = () => { beep(880, .1, 'sine', .06); beep(1175, .16, 'sine', .05, .08); };
+const sndBlock = () => { beep(340, .12, 'triangle', .07, 0, 180); };
+const sndWarn = () => { beep(220, .09, 'square', .06); beep(220, .09, 'square', .06, .13); };
+const sndAlarm = () => { [0, .17, .34].forEach(d => beep(196, .11, 'square', .075, d)); };
+const sndLand = () => { beep(660, .14, 'sine', .055, 0, 330); beep(880, .1, 'sine', .04, .1); };
+const sndFanfare = () => { [659, 784, 988, 1319].forEach((f, i) => beep(f, .12, 'square', .05, i * .06)); };
+
+/* ---------------- Pixel hamster sprite v5 — ROUND PROFILE ---------
+   Vinh's direction (03/11/2026): NO front-facing face — profile view
+   facing right, and make the body ROUND ("tròn tròn"): one chubby
+   ball of a hamster with a big round ear, stuffed cheek pouch on the
+   face side, short blunt snout, curled tail, green scarf, backpack.
+   superMode = Superman pose: arm stretched forward, red cape behind,
+   determined brow, feet trailing. 72x60 grid, 3 frames each.      */
+function makeHamster(frame, superMode, sk){
+  const S = 3, GW = 72, GH = 60;
+  const c = document.createElement('canvas'); c.width = GW * S; c.height = GH * S;
+  const g = c.getContext('2d');
+  const px = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x * S, y * S, w * S, h * S); };
+  const ellipse = (cx, cy, rx, ry, col) => {
+    for (let y = -ry; y <= ry; y++)
+      for (let x = -rx; x <= rx; x++)
+        if ((x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1) px(cx + x, cy + y, 1, 1, col);
+  };
+  const ellipseO = (cx, cy, rx, ry, col) => { ellipse(cx, cy, rx + 1, ry + 1, OL); ellipse(cx, cy, rx, ry, col); };
+  sk = sk || {};
+  const OL = '#5b3312',
+        OR = sk.or || '#f59e0b', OD = sk.od || '#d97706', OR2 = sk.or2 || '#fbbf24', LO = sk.lo || '#fde68a',
+        CR = sk.cheek || '#fff3d6', DK = '#2a1608', PK = '#fb7185', PKL = '#fda4af', NS = '#e11d48',
+        PD = '#5b21b6', PL = '#a78bfa', BD = '#78350f', YL = '#facc15',
+        GN = sk.scarf || '#22c55e', GD = sk.scarfD || '#15803d', GL = sk.scarfL || '#86efac',
+        RD = sk.cape || '#dc2626', RDD = sk.capeD || '#991b1b';
+  const WS = '#e7c9a9';
+  const fl = [0, -1, 1][frame];   // cape flutter (super mode)
+
+  if (superMode){
+    /* red cape flowing behind the round body */
+    px(5, 22, 9, 20, RDD);
+    px(1, 26 + fl, 7, 16, RD); px(2, 26 + fl, 3, 3, '#f87171');
+    px(3, 40 + fl, 8, 4, RDD);
+  } else {
+    /* curled pink tail behind */
+    ellipse(11, 46, 5, 3, PKL); ellipse(8, 41, 3, 4, PKL); px(7, 38, 2, 2, PK);
+    /* purple backpack peeking behind the back */
+    px(10, 24, 8, 17, PD); px(11, 22, 6, 3, PL); px(12, 31, 3, 4, YL);
+  }
+
+  /* THE ROUND BODY: one chubby ball, head merged in, face on the right */
+  ellipseO(37, 34, 23, 21, OR);
+  ellipse(37, 43, 18, 8, OD);
+  ellipse(31, 20, 12, 5, OR2); ellipse(28, 18, 8, 3, LO);
+
+  /* fur patterns (pattern skins): painted over the body fill, clipped
+     to an inner ellipse so the face/cheek (drawn later) stays clean */
+  if (sk.pattern){
+    const STAR = ['....X....', '....X....', '...XXX...', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '..XX.XX..', '.XX...XX.', '.X.....X.'];
+    const RB = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#a855f7'];
+    for (let yy = -19; yy <= 19; yy++) for (let xx = -21; xx <= 21; xx++){
+      if ((xx * xx) / (21 * 21) + (yy * yy) / (19 * 19) > 1) continue;
+      const X = 37 + xx, Y = 34 + yy;
+      let c = null;
+      if (sk.pattern === 'dots'){
+        let dx = ((X + (Math.floor(Y / 10) % 2) * 5) % 10 + 10) % 10; dx = Math.min(dx, 10 - dx);
+        let dy = ((Y % 10) + 10) % 10; dy = Math.min(dy, 10 - dy);
+        if (dx * dx + dy * dy <= 5) c = '#ffffff';
+      } else if (sk.pattern === 'vnstar'){
+        const sx = X - 23, sy = Y - 29;
+        if (sy >= 0 && sy < 9 && sx >= 0 && sx < 9 && STAR[sy][sx] === 'X') c = '#facc15';
+      } else if (sk.pattern === 'jpdisc'){
+        const dx = X - 28, dy = Y - 33;
+        if (dx * dx + dy * dy <= 30) c = '#dc2626';
+      } else if (sk.pattern === 'usa'){
+        if (X <= 33 && Y <= 26) c = ((X % 4 === 1) && (Y % 4 === 1)) ? '#ffffff' : '#1e3a8a';
+        else c = (Math.floor((Y - 13) / 3) % 2 === 0) ? '#b91c1c' : '#f8fafc';
+      } else if (sk.pattern === 'rainbow'){
+        c = RB[Math.floor((Y - 15) / 4) % 6];
+      }
+      if (c) px(X, Y, 1, 1, c);
+    }
+  }
+
+  /* big round ear on top */
+  const earY = frame === 1 ? 1 : 0;
+  ellipseO(29, 11 + earY, 7, 7, OR); ellipse(29, 11 + earY, 3, 3, PK); px(28, 10 + earY, 2, 2, PKL);
+
+  /* stuffed cheek pouch on the face side */
+  ellipseO(49, 38, 12, 10, CR); ellipse(49, 35, 8, 6, '#fffaf0');
+
+  /* glossy eye (+ determined angled brow when super) */
+  if (sk.glow) ellipse(50, 27, 5, 6, '#22d3ee');   // night skin: glowing eye rim
+  ellipse(50, 27, 3, 4, DK); px(49, 25, 2, 2, '#ffffff'); px(51, 29, 1, 1, '#bae6fd');
+  if (superMode){ px(44, 20, 4, 1, BD); px(47, 21, 4, 1, BD); }
+  else px(45, 21, 6, 1, BD);
+
+  /* blunt snout at the ball's right edge: nose, blush, mouth, buck tooth, whiskers */
+  ellipse(60, 32, 3, 2, NS); px(59, 31, 1, 1, '#fecdd3');
+  ellipse(55, 39, 4, 3, PK);
+  px(55, 42, 4, 1, DK);
+  px(54, 43, 3, 4, '#ffffff'); px(54, 47, 3, 1, '#e7e5e4');
+  if (superMode){ px(59, 33, 6, 1, WS); }
+  else { px(60, 34, 7, 1, WS); px(60, 37, 7, 1, WS); }
+
+  /* green scarf hugging the lower front of the ball + fluttering tail
+     (costume skins like Bikini / Quan Vu hide it — their outfit replaces it) */
+  if (!sk.noScarf){
+    px(40, 46, 11, 3, GN); px(40, 46, 11, 1, GL); px(40, 48, 11, 1, GD);
+    const scarfY = [48, 49, 48][frame];
+    px(31, scarfY, 8, 3, GD); px(27, scarfY + 1, 5, 2, GN);
+  }
+
+  /* arm */
+  /* (Vinh decided 03/11/2026: no forward arm in super mode — the cape,
+     brow and speed lines carry the Superman feel on their own.) */
+  if (false){
+  } else {
+    /* little arm flaps mid-body */
+    const armY = [35, 38, 41][frame];
+    ellipseO(33, armY, 5, 3, OR2); px(30, armY - 1, 3, 1, CR);
+  }
+
+  /* skin accessories, drawn over the body */
+  if (sk.acc === 'shades'){
+    px(41, 24, 22, 7, '#111827'); px(53, 26, 5, 2, '#93c5fd'); px(35, 26, 6, 2, '#111827');
+  }
+  if (sk.acc === 'crown'){
+    const cy = earY;
+    px(19, 3 + cy, 20, 4, YL); px(20, 0 + cy, 4, 3, YL); px(27, 0 + cy, 4, 3, YL); px(34, 0 + cy, 4, 3, YL); px(28, 4 + cy, 3, 2, NS);
+  }
+
+  /* feet */
+  if (superMode){
+    /* feet trailing behind together */
+    ellipseO(22, 52, 6, 3, OR); px(18, 53, 7, 1, PK);
+    ellipseO(29, 55, 6, 3, OR); px(25, 56, 7, 1, PK);
+  } else {
+    const kick = frame === 1 ? 1 : 0;
+    ellipseO(27, 54 + kick, 6, 3, OR); px(23, 55 + kick, 7, 1, PK);
+    ellipseO(45, 53 - kick, 6, 3, OR); px(41, 54 - kick, 7, 1, PK);
+  }
+  return c;
+}
+/* Skins: unlocked with LIFETIME Aura (look only — never power).
+   Thresholds per the approved design doc. */
+const BASESKIN = { or: '#f59e0b', od: '#d97706', or2: '#fbbf24', lo: '#fde68a', cheek: '#fff3d6', scarf: '#22c55e', scarfD: '#15803d', scarfL: '#86efac', cape: '#dc2626', capeD: '#991b1b', acc: null, glow: false };
+const SKINS = [
+  Object.assign({}, BASESKIN, { id: 'base', name: '🐹 Gốc', en: '🐹 Original', need: 0 }),
+  Object.assign({}, BASESKIN, { id: 'khan-do', name: '🧣 Khăn đỏ', en: '🧣 Red Scarf', need: 150, scarf: '#dc2626', scarfD: '#991b1b', scarfL: '#facc15' }),
+  Object.assign({}, BASESKIN, { id: 'kinh-ram', name: '🕶️ Kính râm', en: '🕶️ Shades', need: 300, acc: 'shades' }),
+  Object.assign({}, BASESKIN, { id: 'vuong-mien', name: '👑 Vương miện', en: '👑 Crown', need: 500, acc: 'crown' }),
+  Object.assign({}, BASESKIN, { id: 'cham-bi', name: '🫧 Chấm bi', en: '🫧 Polka Dot', need: 700, or: '#f9a8d4', od: '#ec4899', or2: '#fbcfe8', lo: '#fdf2f8', cheek: '#fff1f2', scarf: '#f8fafc', scarfD: '#cbd5e1', scarfL: '#ffffff', pattern: 'dots' }),
+  Object.assign({}, BASESKIN, { id: 'bong-dem', name: '🌙 Bóng đêm', en: '🌙 Night', need: 900, or: '#6d6395', od: '#4c4470', or2: '#8b81b8', lo: '#b6aee0', cheek: '#cfc8ee', scarf: '#0ea5e9', scarfD: '#0369a1', scarfL: '#7dd3fc', glow: true }),
+  Object.assign({}, BASESKIN, { id: 'viet-nam', name: '🇻🇳 Việt Nam', en: '🇻🇳 Vietnam', need: 1200, or: '#dc2626', od: '#b91c1c', or2: '#ef4444', lo: '#fca5a5', cheek: '#fee2e2', scarf: '#facc15', scarfD: '#ca8a04', scarfL: '#fde68a', pattern: 'vnstar' }),
+  Object.assign({}, BASESKIN, { id: 'hoang-kim', name: '✨ Hoàng kim', en: '✨ Golden', need: 1500, or: '#fcd34d', od: '#f59e0b', or2: '#fde68a', lo: '#fef9c3', cheek: '#fff7d6', scarf: '#dc2626', scarfD: '#991b1b', scarfL: '#fca5a5', cape: '#f59e0b', capeD: '#b45309' }),
+  Object.assign({}, BASESKIN, { id: 'nhat-ban', name: '🇯🇵 Nhật Bản', en: '🇯🇵 Japan', need: 1800, or: '#f8fafc', od: '#e2e8f0', or2: '#ffffff', lo: '#ffffff', cheek: '#fee2e2', scarf: '#dc2626', scarfD: '#991b1b', scarfL: '#fca5a5', pattern: 'jpdisc' }),
+  Object.assign({}, BASESKIN, { id: 'hoa-ky', name: '🇺🇸 Hoa Kỳ', en: '🇺🇸 USA', need: 2200, or: '#f8fafc', od: '#e2e8f0', or2: '#ffffff', lo: '#ffffff', cheek: '#fff1f2', scarf: '#1e3a8a', scarfD: '#172554', scarfL: '#3b82f6', pattern: 'usa' }),
+  Object.assign({}, BASESKIN, { id: 'cau-vong', name: '🌈 Cầu vồng', en: '🌈 Rainbow', need: 2600, or: '#f8fafc', od: '#e2e8f0', or2: '#ffffff', lo: '#ffffff', cheek: '#fff7ed', scarf: '#f8fafc', scarfD: '#cbd5e1', scarfL: '#ffffff', pattern: 'rainbow' }),
+];
+let skinId = 'base';
+try { skinId = localStorage.getItem('squeekSkin') || 'base'; } catch (e) {}
+function skinDef(){ return SKINS.find(k => k.id === skinId) || SKINS[0]; }
+let hamsterFrames = [], hamsterSuperFrames = [];
+function buildSprites(){
+  const def = skinDef();
+  hamsterFrames = [makeHamster(0, false, def), makeHamster(1, false, def), makeHamster(2, false, def)];
+  hamsterSuperFrames = [makeHamster(0, true, def), makeHamster(1, true, def), makeHamster(2, true, def)];
+}
+buildSprites();
+
+/* ---------------- Game state ---------------- */
+const ham = { x: 96, y: 300, vy: 0, r: 17 };
+let state = 'menu';            // menu | playing | paused | over
+let pausedFrom = 'playing';    // the phase a pause froze: playing | wheel | crush
+let pipes = [], aurasArr = [], particles = [], skillItems = [], floaters = [];
+let shieldCharges = 0, superLeft = 0, invulnT = 0;
+/* hit points: start (and max) 2 hearts — a hit costs 1 heart before death */
+let hp = 2; const MAXHP = 2;
+/* gift boxes + skins granted by gifts (permanent, bypass the Aura price) */
+let gifts = [], giftCd = 10, giftsOpened = 0, giftSkinWon = '';
+let skinGrants = [];
+try { skinGrants = JSON.parse(localStorage.getItem('squeekSkinGrants') || '[]'); } catch (e) {}
+let auraProgress = 0, bigQueue = 0, skillCooldown = 8, lastSkillType = 'shield';
+let bigCollected = 0, superUsed = 0, shieldBlocks = 0;
+let perfectStreak = 0, perfectMax = 0, nearMiss = 0;
+let shakeT = 0, deathT = 0, ghostPassed = false;
+let handbackT = 0, superTickAt = 0, moveAnnounced = false;
+let nextBossAt = 30, bossCount = 0, bossKills = 0, diedByBoss = 0;
+/* portal + Wheel Sprint mini-game */
+let portals = [], portalCd = 12, portalsSpawned = 0, wheelAuraRun = 0;
+/* Bamboo Squeeze phase: walls close in, mash to stay centred */
+let CR = null, crushPassed = 0;
+/* the squeeze is opt-in now: fly through the GREEN portal, or skip it */
+let crushPortals = [], crushCd = 14;
+let crushAuraRun = 0;
+const PORTAL_STYLES = {
+  mini:  { ring: ['#c084fc', '#22d3ee', '#f0abfc'], core: '#e9d5ff', spark: '#e9d5ff', glow: 'rgba(168,85,247,.35)', label: 'MINI GAME', labelCol: '#e9d5ff' },
+  crush: { ring: ['#4ade80', '#a3e635', '#2dd4bf'], core: '#bbf7d0', spark: '#d9f99d', glow: 'rgba(34,197,94,.35)', label: '🎋 KẸP TRE', labelCol: '#bbf7d0' }
+};
+let W2 = null;
+const CAGE = { cx: 210, cy: 322, R: 192 };
+const wheelStars = Array.from({ length: 46 }, (_, i) => ({ x: (i * 89.7) % 420, y: (i * 53.3) % 300, r: (i % 3) * .7 + .8 }));
+let chainN = 0, chainT = 0, chainMax = 0, goldenPassed = 0, breathPassed = 0;
+let lt = { runs: 0, aura: 0, supers: 0 };
+try { Object.assign(lt, JSON.parse(storeGet('squeekLt') || '{}')); } catch (e) {}
+let ach = {};
+try { ach = JSON.parse(storeGet('squeekAch') || '{}'); } catch (e) {}
+let achToast = null;
+const ACHS = [
+  { id: 'first-super', icon: '🦸', text: 'Lần đầu hóa Siêu nhân!', en: 'Turn Super for the first time!', test: () => lt.supers + superUsed >= 1 },
+  { id: 'aura-100', icon: '✨', text: 'Thu thập 100 Aura trọn đời!', en: 'Collect 100 lifetime Aura!', test: () => lt.aura + auraCount >= 100 },
+  { id: 'aura-500', icon: '💜', text: 'Thu thập 500 Aura trọn đời!', en: 'Collect 500 lifetime Aura!', test: () => lt.aura + auraCount >= 500 },
+  { id: 'score-20', icon: '🚀', text: 'Bay 20 điểm trong 1 lượt!', en: 'Score 20 points in one run!', test: () => score >= 20 },
+  { id: 'perfect-5', icon: '⭐', text: 'Perfect x5 trong 1 lượt!', en: 'Perfect x5 in one run!', test: () => perfectMax >= 5 },
+  { id: 'missions-10', icon: '🎯', text: 'Hoàn thành 10 nhiệm vụ!', en: 'Complete 10 missions!', test: () => missionsDoneTotal >= 10 },
+  { id: 'runs-25', icon: '🎮', text: 'Chơi đủ 25 lượt!', en: 'Play 25 runs!', test: () => lt.runs >= 25 },
+];
+function checkAch(){
+  for (const a of ACHS){
+    if (!ach[a.id] && a.test()){
+      ach[a.id] = 1; storeSet('squeekAch', JSON.stringify(ach));
+      if (!achToast){ achToast = { icon: a.icon, text: achText(a), t: 2.8 }; sndFanfare(); }
+    }
+  }
+}
+let bestDist = parseFloat(storeGet('squeekFlapBestDist') || '0');
+let activeMissions = [];
+let missionsDoneTotal = parseInt(storeGet('squeekMissionsDone') || '0', 10);
+const MISSION_POOL = [
+  { text: 'Nhặt 15 Aura', en: 'Collect 15 Aura', test: () => auraCount >= 15 },
+  { text: 'Nhặt 30 Aura', en: 'Collect 30 Aura', test: () => auraCount >= 30 },
+  { text: 'Qua 12 cột', en: 'Pass 12 columns', test: () => score >= 12 },
+  { text: 'Qua 25 cột', en: 'Pass 25 columns', test: () => score >= 25 },
+  { text: 'Ăn 1 Aura lớn (+2)', en: 'Eat 1 Big Aura (+2)', test: () => bigCollected >= 1 },
+  { text: 'Perfect giữa khe x3 liên tiếp', en: 'Perfect through the gap x3 in a row', test: () => perfectMax >= 3 },
+  { text: '3 lần Suýt! (bay sát mép)', en: '3 Near misses! (skim the edge)', test: () => nearMiss >= 3 },
+  { text: 'Kích hoạt 1 skill bất kỳ', en: 'Activate any 1 skill', test: () => superUsed > 0 || shieldBlocks > 0 || shieldCharges > 0 },
+];
+function genMissions(){
+  const r = mulberry32((currentSeed() ^ 0x9e3779b9) >>> 0);
+  const pool = [...MISSION_POOL], out = [];
+  for (let i = 0; i < 3; i++) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0]);
+  return out;
+}
+function skinUnlocked(k){ return lt.aura >= k.need || skinGrants.includes(k.id); }
+function renderSkins(){
+  const el = $('skinList'); if (!el) return;
+  $('skinAuraTotal').textContent = lt.aura;
+  el.innerHTML = '';
+  const grid = document.createElement('div'); grid.className = 'skingrid';
+  SKINS.forEach(k => {
+    const unlocked = skinUnlocked(k);
+    const card = document.createElement('div');
+    card.className = 'skincard' + (skinId === k.id ? ' eq' : '') + (unlocked ? '' : ' locked');
+    let prev = '';
+    try { prev = makeHamster(1, false, k).toDataURL(); } catch (e) {}
+    const pct = k.need ? Math.min(100, Math.floor(lt.aura / k.need * 100)) : 100;
+    card.innerHTML =
+      '<div class="pv">' + (prev ? '<img src="' + prev + '" alt="">' : '') + (!unlocked ? '<span class="lock">🔒</span>' : '') + '</div>' +
+      '<div class="nm">' + skinName(k) + '</div>' +
+      (k.need
+        ? '<div class="pbar"><i style="width:' + pct + '%"></i></div>' +
+          '<div class="st">' + (unlocked ? (skinGrants.includes(k.id) && lt.aura < k.need ? tt('skinGifted') : tt('skinUnlocked')) : lt.aura + '/' + k.need + ' • ' + tt('skinLeft', { n: k.need - lt.aura })) + '</div>'
+        : '<div class="st">' + tt('skinDefault') + '</div>') +
+      (skinId === k.id ? '<div class="eqb">' + tt('skinWearing') + '</div>'
+        : unlocked ? '<button class="skinbtn wide" data-skin="' + k.id + '">' + tt('skinEquip') + '</button>' : '');
+    grid.appendChild(card);
+  });
+  el.appendChild(grid);
+  el.querySelectorAll('button[data-skin]').forEach(b => b.addEventListener('click', () => equipSkin(b.getAttribute('data-skin'))));
+}
+function equipSkin(id){
+  const k = SKINS.find(x => x.id === id);
+  if (!k || !skinUnlocked(k)) return;
+  skinId = id; storeSet('squeekSkin', id); buildSprites(); renderSkins(); beep(880, .07, 'square', .05);
+}
+function refreshMenuInfo(){
+  renderSkins();
+  $('bestLabel').textContent = tt('bestLine', { b: best, m: missionsDoneTotal, a: Object.keys(ach).length });
+  const ms = genMissions();
+  $('missionsLabel').textContent = tt('missionsLbl') + ms.map(m => misText(m)).join(' • ');
+}
+function storeGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function storeSet(k, v){ try { localStorage.setItem(k, v); } catch(e){ /* storage blocked: play on without saving */ } }
+let score = 0, auraCount = 0, best = parseInt(storeGet('squeekFlapBest') || '0', 10);
+let rng = mulberry32(1), lastGapY = 280, distPx = 0, elapsed = 0;
+let runSnapshot = null, frameTimer = 0, spawnDist = 0, groundOff = 0, wheelAngle = 0;
+let clouds = [], hillsOff = 0;
+
+for (let i = 0; i < 6; i++) clouds.push({ x: Math.random() * W, y: 24 + Math.random() * 150, s: .6 + Math.random() * .9 });
+refreshMenuInfo();
+
+const PIPE_NOMINAL_SPEED = 200;   /* px per "second" of pipe animation (gap breathing, Boss drift) */
+function gapSize(){ return Math.max(150, 186 - score * 1.1); }
+function superBoost(){
+  if (superLeft <= 0) return 1;
+  /* fresh Superman = fast (+45%), easing back toward normal speed
+     as the last pipes run out, so the hand-back never feels abrupt */
+  return 1 + .45 * Math.pow(superLeft / 10, .8);
+}
+function baseSpeed(){
+  let s = 168 + Math.min(92, score * 3.2);
+  if (wheel.online) s *= isSpinning() ? 1.10 : 0.92;   // Live Wheel Sync
+  if (superLeft > 0) s *= superBoost();
+  return s;
+}
+function floater(x, y, text, col){
+  floaters.push({ x, y, text, col: col || '#fff', life: 1.15 });
+}
+function addAuraProgress(v){
+  auraProgress += v;
+  while (auraProgress >= 20){ auraProgress -= 20; bigQueue++; }
+}
+function nextGapY(){
+  const gs = gapSize(), m = 78;
+  let y = m + gs / 2 + rng() * (PLAY_H - m * 2 - gs);
+  y = Math.max(m + gs / 2, Math.min(PLAY_H - m - gs / 2, lastGapY + (y - lastGapY) * .8));
+  lastGapY = y; return y;
+}
+function startRun(){
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  score = 0; auraCount = 0; distPx = 0; elapsed = 0; spawnDist = 0;
+  pipes = []; aurasArr = []; particles = []; skillItems = []; floaters = [];
+  shieldCharges = 0; superLeft = 0; invulnT = 0; hp = MAXHP; gifts = []; giftCd = 10; giftsOpened = 0; giftSkinWon = '';
+  auraProgress = 0; bigQueue = 0; skillCooldown = 8;
+  bigCollected = 0; superUsed = 0; shieldBlocks = 0;
+  perfectStreak = 0; perfectMax = 0; nearMiss = 0;
+  shakeT = 0; ghostPassed = false;
+  handbackT = 0; chainN = 0; chainT = 0; chainMax = 0; goldenPassed = 0; breathPassed = 0; moveAnnounced = false; nextBossAt = 30; bossCount = 0; bossKills = 0; diedByBoss = 0; portals = []; portalCd = 12; portalsSpawned = 0; wheelAuraRun = 0; W2 = null; CR = null; crushPassed = 0; crushPortals = []; crushCd = 14; crushAuraRun = 0;
+  activeMissions = genMissions();
+  ham.y = 300; ham.vy = 0; lastGapY = 280;
+  runSeed = currentSeed();
+  rng = mulberry32(runSeed);
+  activeChallenge = pendingChallenge; challengeWon = false;
+  runSnapshot = {
+    round: wheel.online && wheel.round != null ? wheel.round : 'demo',
+    block: wheel.online ? wheel.blockHeight : '—',
+    rpm: wheel.online ? wheel.rpm.toFixed(1) : '—',
+    status: wheel.online ? wheel.status : 'OFFLINE',
+    work: wheel.work
+  };
+  state = 'playing'; pausedFrom = 'playing';
+  menuOverlay.classList.add('hidden'); overOverlay.classList.add('hidden');
+  flap();
+}
+function startDeath(){
+  if (state !== 'playing' && state !== 'crush') return;   /* the squeeze phase can kill too */
+  state = 'dying'; deathT = .55; shakeT = .42;
+  sndHit(); burst(ham.x, ham.y, '#fda4af', 16);
+}
+function endRun(){
+  state = 'over';
+  if (score >= best && score > 0){ bestDist = distPx; storeSet('squeekFlapBestDist', String(bestDist)); }
+  const doneList = activeMissions.map(m => ({ text: misText(m), ok: m.test() }));
+  const newly = doneList.filter(d => d.ok).length;
+  if (newly > 0){ missionsDoneTotal += newly; storeSet('squeekMissionsDone', String(missionsDoneTotal)); }
+  const prevLtAura = lt.aura;
+  lt.runs++; lt.aura += auraCount; lt.supers += superUsed;
+  storeSet('squeekLt', JSON.stringify(lt));
+  checkAch();
+  const newSkins = SKINS.filter(k => prevLtAura < k.need && lt.aura >= k.need);
+  if (newSkins.length && !achToast) achToast = { icon: '🎨', text: tt('fSkinUnlock', { names: newSkins.map(k => skinName(k)).join(', ') }), t: 3.2 };
+  const isNew = score > best;
+  if (isNew){ best = score; storeSet('squeekFlapBest', String(best)); }
+  $('finalScore').textContent = score;
+  $('finalAura').textContent = auraCount;
+  $('newBestLabel').style.display = isNew ? 'block' : 'none';
+  $('bestLabel').textContent = tt('bestShort', { b: best });
+  const meters = (distPx / 46).toFixed(1);
+  $('receipt').innerHTML =
+    '<div><span>' + tt('rDist') + '</span><b>' + meters + ' m</b></div>' +
+    '<div><span>' + tt('rAura') + '</span><b>' + auraCount + '</b></div>' +
+    '<div><span>' + tt('rBig') + '</span><b>' + bigCollected + ' ' + tt('uOrbs') + '</b></div>' +
+    '<div><span>' + tt('rSuper') + '</span><b>' + superUsed + '</b></div>' +
+    '<div><span>' + tt('rShield') + '</span><b>' + shieldBlocks + ' ' + tt('uTimes') + '</b></div>' +
+    '<div><span>' + tt('rGolden') + '</span><b>' + goldenPassed + ' ' + tt('uCols') + '</b></div>' +
+    '<div><span>' + tt('rBreath') + '</span><b>' + breathPassed + ' ' + tt('uCols') + '</b></div>' +
+      '<div><span>' + tt('rBoss') + '</span><b>' + tt('rBossVal', { n: bossKills }) + '</b></div>' +
+      (diedByBoss ? '<div><span>' + tt('rDiedBoss') + '</span><b>' + tt('rBossN', { n: diedByBoss }) + '</b></div>' : '') +
+    (newSkins.length ? '<div><span>' + tt('rNewSkins') + '</span><b>' + newSkins.map(k => skinName(k)).join(', ') + ' ' + tt('rEquipHint') + '</b></div>' : '') +
+    (activeChallenge ? '<div><span>' + tt('rChal', { name: escHtml(activeChallenge.name), s: activeChallenge.score }) + '</span><b>' + (score > activeChallenge.score ? tt('rWin', { a: score, b: activeChallenge.score }) : tt('rLose', { a: score, b: activeChallenge.score })) + '</b></div>' : '') +
+    (wheelAuraRun ? '<div><span>' + tt('rWheelAura') + '</span><b>' + wheelAuraRun + '</b></div>' : '') +
+    (giftsOpened ? '<div><span>' + tt('rGifts') + '</span><b>' + giftsOpened + (giftSkinWon ? tt('rGiftSkin', { name: escHtml(skinName(SKINS.find(k => k.id === giftSkinWon) || { name: giftSkinWon, en: giftSkinWon })) }) : '') + '</b></div>' : '') +
+    (crushPassed ? '<div><span>' + tt('rCrush') + '</span><b>' + crushPassed + (crushAuraRun ? tt('rCrushAura', { n: crushAuraRun }) : '') + '</b></div>' : '') +
+    '<div><span>' + tt('rChain') + '</span><b>x' + chainMax + '</b></div>' +
+    '<div><span>' + tt('rRound') + '</span><b>#' + escHtml(runSnapshot.round) + '</b></div>' +
+    '<div><span>' + tt('rBlock') + '</span><b>#' + escHtml(runSnapshot.block) + '</b></div>' +
+    '<div><span>' + tt('rRpm') + '</span><b>' + escHtml(runSnapshot.rpm) + ' (' + escHtml(runSnapshot.status) + ')</b></div>' +
+    '<div><span>' + tt('rTime') + '</span><b>' + elapsed.toFixed(1) + ' ' + tt('uSecs') + '</b></div>' +
+    '<div><span>' + tt('rMisHead') + '</span><b>' + tt('rMisN', { n: newly }) + '</b></div>' +
+    doneList.map(d => '<div><span>' + (d.ok ? '✅' : '⬜') + ' ' + d.text + '</span><b>' + (d.ok ? tt('rDone') : tt('rTodo')) + '</b></div>').join('');
+  setTimeout(() => overOverlay.classList.remove('hidden'), 450);
+}
+function flap(){
+  if (state === 'playing' && superLeft <= 0){ ham.vy = -472; sndFlap(); burst(ham.x - 16, ham.y + 14, '#ffffff', 3); }
+}
+function tryShieldRescue(snapGapY){
+  if (shieldCharges <= 0) return false;
+  shieldCharges--; shieldBlocks++; invulnT = 1.4; shakeT = .25;
+  sndBlock(); burst(ham.x, ham.y, '#7dd3fc', 18);
+  floater(ham.x, ham.y - 34, tt('fShield'), '#7dd3fc');
+  if (snapGapY != null) ham.y = snapGapY;
+  ham.y = Math.min(Math.max(ham.y, 84), PLAY_H - 84);
+  ham.vy = -300;
+  return true;
+}
+function openGift(c){
+  giftsOpened++;
+  burst(c.x, c.y, '#fbbf24', 16); burst(c.x, c.y, '#f472b6', 10);
+  const locked = SKINS.filter(k => !skinUnlocked(k));
+  if (Math.random() < .02 && locked.length){
+    /* the 2% jackpot: a random locked skin, unlocked forever */
+    const win = locked[Math.floor(Math.random() * locked.length)];
+    skinGrants.push(win.id);
+    try { localStorage.setItem('squeekSkinGrants', JSON.stringify(skinGrants)); } catch (e) {}
+    giftSkinWon = win.id;
+    sndFanfare();
+    floater(c.x, c.y - 32, tt('fGiftSkinShort', { name: skinName(win) }), '#fde047');
+    if (!achToast) achToast = { text: tt('fGiftSkin', { name: skinName(win) }), t: 3.6 };
+    return;
+  }
+  if (hp < MAXHP){ hp++; sndBig(); floater(c.x, c.y - 32, '🎁 +1 TIM ❤️', '#fda4af'); }
+  else { auraCount += 3; addAuraProgress(3); sndAura(); floater(c.x, c.y - 32, tt('fGiftFull'), '#c084fc'); }
+}
+function trySurviveHit(snapGapY){
+  /* shield eats the hit first; otherwise a heart does; death only at 1 heart */
+  if (tryShieldRescue(snapGapY)) return true;
+  if (hp <= 1) return false;
+  hp--; invulnT = Math.max(invulnT, 1.6); shakeT = Math.max(shakeT, .3);
+  beep(140, .2, 'sawtooth', .09); burst(ham.x, ham.y, '#f87171', 16);
+  floater(ham.x, ham.y - 36, tt('fHeart', { n: hp }), '#fda4af');
+  if (snapGapY != null) ham.y = snapGapY;
+  ham.y = Math.min(Math.max(ham.y, 84), PLAY_H - 84);
+  ham.vy = -300;
+  return true;
+}
+function activateSkill(type, x, y){
+  if (type === 'super'){
+    superLeft = 10; superUsed++;
+    sndSuper(); floater(x, y - 26, tt('fSuper'), '#fde047');
+    burst(x, y, '#fde047', 16);
+  } else {
+    shieldCharges = 1;
+    sndShield(); floater(x, y - 26, tt('fShieldGet'), '#7dd3fc');
+    burst(x, y, '#7dd3fc', 14);
+  }
+  checkAch();
+}
+function burst(x, y, col, n){
+  for (let i = 0; i < n; i++)
+    particles.push({ x, y, vx: (Math.random() - .5) * 190, vy: (Math.random() - .7) * 190, life: .55, col, s: 2 + Math.random() * 3 });
+}
+
+/* Super Saiyan-style ki aura: layered flickering flame tongues around
+   the hamster while Superman mode is on. `power` follows the remaining
+   pipes, so the aura visibly dies down together with the speed. */
+function drawSuperAura(x, y){
+  const t = performance.now() / 1000;
+  const power = Math.max(.3, Math.min(1, superLeft / 10));
+  ctx.save();
+  ctx.translate(x, y);
+  const gl = ctx.createRadialGradient(0, 0, 8, 0, 0, 74);
+  gl.addColorStop(0, 'rgba(254,240,138,' + (.28 + .3 * power) + ')');
+  gl.addColorStop(1, 'rgba(250,204,21,0)');
+  ctx.fillStyle = gl;
+  ctx.beginPath(); ctx.arc(0, 0, 74, 0, 6.29); ctx.fill();
+  const layers = [['rgba(245,158,11,.50)', 1], ['rgba(250,204,21,.78)', .78], ['rgba(254,240,138,.92)', .54]];
+  layers.forEach(([col, k], li) => {
+    ctx.fillStyle = col;
+    const n = 11;
+    for (let i = 0; i < n; i++){
+      const a = (i / n) * Math.PI * 2 + li * .35;
+      const bx = Math.cos(a) * 33, by = Math.sin(a) * 29;
+      const flick = .72 + .28 * Math.sin(t * 14 + i * 2.4 + li * 1.7);
+      const len = (14 + 26 * power) * k * flick;
+      let dx = Math.cos(a), dy = Math.sin(a) - .38;   // bias upward: ki rises
+      const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
+      const tx = bx + dx * len, ty = by + dy * len;
+      const pvx = -dy * 6 * k, pvy = dx * 6 * k;
+      ctx.beginPath();
+      ctx.moveTo(bx - pvx, by - pvy);
+      ctx.quadraticCurveTo(bx + dx * len * .5 - pvx * .3, by + dy * len * .5 - pvy * .3, tx, ty);
+      ctx.quadraticCurveTo(bx + dx * len * .5 + pvx * .3, by + dy * len * .5 + pvy * .3, bx + pvx, by + pvy);
+      ctx.closePath(); ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+/* ---------------- Update ---------------- */
+let lastT = performance.now(), acc = 0;
+function loop(t){
+  requestAnimationFrame(loop);
+  let dt = (t - lastT) / 1000; lastT = t;
+  if (!(dt > 0)) dt = 0;
+  if (dt > .1) dt = .1;                 /* tab switch: never spiral */
+  acc += dt;
+  const STEP = 1 / 120;                 /* fixed-step physics: identical, even motion at any refresh rate */
+  let n = 0;
+  while (acc >= STEP && n < 10){ update(STEP); acc -= STEP; n++; }
+  if (n === 10) acc = 0;
+  draw();
+}
+function update(dt){
+  /* a paused mini-game is frozen solid: no timers, physics or spawns */
+  if (state === 'paused' && pausedFrom !== 'playing') return;
+  frameTimer += dt;
+  groundOff = (groundOff + (state === 'playing' ? baseSpeed() * dt : 14 * dt)) % 48;
+  hillsOff = (hillsOff + (state === 'playing' ? baseSpeed() * dt * .25 : 3 * dt)) % 120;
+  wheelAngle += dt * (wheel.online ? (wheel.rpm * Math.PI * 2 / 60) : .25);
+  clouds.forEach(c => { c.x -= (state === 'playing' ? baseSpeed() * .18 : 5) * dt * c.s; if (c.x < -70){ c.x = W + 20; c.y = 24 + Math.random() * 150; } });
+  particles = particles.filter(p => (p.life -= dt) > 0);
+  particles.forEach(p => { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 420 * dt; });
+  if (shakeT > 0) shakeT -= dt;
+  if (achToast){ achToast.t -= dt; if (achToast.t <= 0) achToast = null; }
+  if (state === 'dying'){
+    /* slow-motion fall before the game-over panel */
+    deathT -= dt;
+    ham.vy = Math.min(720, ham.vy + 1620 * dt * .35);
+    ham.y += ham.vy * dt * .35;
+    if (ham.y > PLAY_H - ham.r) ham.y = PLAY_H - ham.r;
+    if (deathT <= 0) endRun();
+    return;
+  }
+
+  if (state === 'wheel'){ updateWheel(dt); return; }
+  if (state === 'crush'){ updateCrush(dt); return; }
+  if (state !== 'playing') return;
+  elapsed += dt;
+  if (invulnT > 0) invulnT -= dt;
+  if (handbackT > 0) handbackT -= dt;
+  if (chainT > 0){ chainT -= dt; if (chainT <= 0) chainN = 0; }
+  floaters = floaters.filter(f => (f.life -= dt) > 0);
+  floaters.forEach(f => f.y -= 34 * dt);
+  const sp = baseSpeed();
+  distPx += sp * dt;
+  const ghostTargetPx = activeChallenge ? activeChallenge.meters * 46 : bestDist;
+  if (ghostTargetPx > 0 && !ghostPassed && distPx >= ghostTargetPx){
+    ghostPassed = true;
+    floater(ham.x + 30, ham.y - 44, activeChallenge ? tt('fGhostChal', { name: activeChallenge.name.toUpperCase() }) : tt('fGhostRec'), '#fde047');
+    sndFanfare(); burst(ham.x + 20, ham.y, '#facc15', 18);
+  }
+
+  if (auraCount >= 30 && !moveAnnounced){
+    moveAnnounced = true;
+    floater(W / 2, 150, tt('fBreathOn'), '#f87171');
+    sndAlarm();
+    /* pipes already on screen join in, so the change is visible at once */
+    pipes.forEach(pp => {
+      /* keep the seeded spawn phase: the same seed breathes the same way */
+      if (!pp.counted && !pp.breathAmp && !pp.boss){ pp.breathAmp = 35; pp.baseGap = pp.gap; }
+    });
+  }
+  if (skinId === 'hoang-kim' && state === 'playing' && Math.random() < .5)
+    particles.push({ x: ham.x - 14, y: ham.y + 6 + Math.random() * 10, vx: -60 - Math.random() * 40, vy: -16 + Math.random() * 30, life: .4, col: Math.random() < .5 ? '#facc15' : '#fef08a', s: 2 + Math.random() * 2 });
+  if (superLeft > 0 && Math.random() < .55){
+    particles.push({ x: ham.x + (Math.random() * 60 - 30), y: ham.y + 24, vx: -30 - Math.random() * 50, vy: -110 - Math.random() * 100, life: .45, col: Math.random() < .5 ? '#facc15' : '#fef08a', s: 2 + Math.random() * 2 });
+  }
+  if (superLeft > 0){
+    /* Superman: auto-pilot straight toward the next gap, no gravity, no flap */
+    const ahead = pipes.filter(q => q.x + (q.w || 64) >= ham.x - 10).sort((a, b) => a.x - b.x)[0];
+    const target = ahead ? ahead.gapY : ham.y + Math.sin(elapsed * 2.2) * 14;
+    const dy = target - ham.y;
+    ham.y += Math.max(-300 * dt, Math.min(300 * dt, dy * 6 * dt));
+    ham.y = Math.min(Math.max(ham.y, ham.r + 4), PLAY_H - ham.r - 4);
+    ham.vy = 0;
+  } else if (handbackT > 0){
+    /* SAFE LANDING: gentle assisted steering toward the next gap while
+       the player takes control back — flapping still works on top. */
+    const ahead = pipes.filter(q => q.x + (q.w || 64) >= ham.x - 10).sort((a, b) => a.x - b.x)[0];
+    const target = ahead ? ahead.gapY : ham.y;
+    const desVy = Math.max(-340, Math.min(340, (target - ham.y) * 6));
+    const dv = desVy - ham.vy;
+    ham.vy += Math.max(-1500 * dt, Math.min(1500 * dt, dv));
+    ham.y += ham.vy * dt;
+  } else {
+    ham.vy = Math.min(640, ham.vy + 1620 * dt);
+    ham.y += ham.vy * dt;
+  }
+
+  /* spawn pipes by distance so spacing stays fair at any speed */
+  spawnDist += sp * dt;
+  if (spawnDist >= 196){
+    spawnDist = 0;
+    if (skillCooldown > 0) skillCooldown--;
+    if (portalCd > 0) portalCd--;
+    if (giftCd > 0) giftCd--;
+    if (crushCd > 0) crushCd--;
+    const gy = nextGapY(), gs = gapSize();
+    /* every 30 points the next column is a BOSS: extra-wide bamboo
+       gate with a tighter, drifting, lightly breathing gap */
+    const isBoss = score >= nextBossAt;
+    let golden = false, gapVal = gs;
+    if (isBoss){
+      bossCount++; nextBossAt += 30;
+      gapVal = Math.max(128, gs - 16 - 2 * (bossCount - 1));
+    } else {
+      golden = rng() < .12;
+      gapVal = golden ? Math.max(132, gs * .92) : gs;
+    }
+    /* from 30 Aura on, new bamboo columns BREATHE (Vinh's design): the
+       gap widens and narrows slowly around a fixed centre */
+    const breathAmp = !isBoss && auraCount >= 30 ? 35 : 0;
+    const pipe = { x: W + 70, gapY: gy, gap: gapVal, baseGap: gapVal, counted: false, golden, breathAmp, phase: rng() * 6.28,
+      w: isBoss ? 110 : 64, boss: isBoss, bossN: isBoss ? bossCount : 0, bossBaseY: gy,
+      bossAmp: isBoss ? Math.min(34, 22 + 4 * (bossCount - 1)) : 0 };
+    pipes.push(pipe);
+    const spotX = W + 70 + pipe.w / 2;
+    if (isBoss){
+      floater(W / 2, 150, tt('fBossWarn'), '#f87171'); sndAlarm();
+      /* fairness: no skill item / big aura / golden on the boss gate —
+         at most one plain aura in its gap */
+      if (rng() < .45) aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: false });
+    } else if (bigQueue > 0){
+      bigQueue--;
+      aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: true });
+    } else if (giftCd <= 0 && superLeft <= 0 && rng() < .10){
+      /* a gift box floats in the gap — mostly a heart, 2% a skin */
+      gifts.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28 });
+      giftCd = 16;
+    } else if (portalCd <= 0 && superLeft <= 0 && portalsSpawned < 2 && rng() < .08){
+      /* a swirling portal gate — fly through it into the mini-game */
+      portals.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, kind: 'mini' });
+      portalsSpawned++; portalCd = 30;
+    } else if (crushCd <= 0 && superLeft <= 0 && crushPortals.length === 0 && rng() < .08){
+      /* the GREEN gate: an invitation to the squeeze — fly in or fly past */
+      crushPortals.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, kind: 'crush' });
+      crushCd = 28;
+    } else if (skillCooldown <= 0 && superLeft <= 0 && rng() < .15){
+      lastSkillType = lastSkillType === 'super' ? 'shield' : 'super';   // alternate fairly
+      skillItems.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, type: lastSkillType });
+      skillCooldown = 12;
+    } else if (rng() < .78){
+      aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: false });
+    }
+  }
+  pipes.forEach(p => p.x -= sp * dt);
+  pipes.forEach(pipe => {
+    /* animation clock = how far this pipe has travelled since it
+       spawned (px → s at the nominal 200px/s), not wall-clock time, so
+       the same seed gives the same gap at the same spot on every run */
+    const pt = (W + 70 - pipe.x) / PIPE_NOMINAL_SPEED;
+    if (pipe.boss){
+      /* the boss gap drifts slowly up/down (±22px, +4 per boss) and
+         breathes lightly (±14px) — a living gate */
+      const half = pipe.gap / 2;
+      pipe.gapY = Math.max(half + 36, Math.min(PLAY_H - half - 36,
+        pipe.bossBaseY + Math.sin(pt * 1.047 + pipe.phase) * pipe.bossAmp));
+      pipe.gap = Math.max(128, Math.min(245,
+        pipe.baseGap + Math.sin(pt * 1.428 + pipe.phase + 1.7) * 14));
+    } else if (pipe.breathAmp){
+      /* one full breath ≈ 4.4s. Asymmetric (Vinh): the gap widens up
+         to +50 but only narrows to -20 vs its base — the tightest
+         moment stays friendly. Safety floor 130px, ceiling 245px. */
+      pipe.gap = Math.max(130, Math.min(245,
+        pipe.baseGap + 15 + Math.sin(pt * 1.428 + pipe.phase) * pipe.breathAmp));
+    }
+  });
+  aurasArr.forEach(c => c.x -= sp * dt);
+  skillItems.forEach(c => c.x -= sp * dt);
+  portals.forEach(c => c.x -= sp * dt);
+  portals = portals.filter(c => c.x > -60 && !c.taken);
+  gifts.forEach(c => c.x -= sp * dt);
+  gifts = gifts.filter(c => c.x > -50 && !c.taken);
+  crushPortals.forEach(c => c.x -= sp * dt);
+  crushPortals = crushPortals.filter(c => c.x > -60 && !c.taken);
+  pipes = pipes.filter(p => p.x > -((p.w || 64) + 30));
+  aurasArr = aurasArr.filter(c => !c.taken && c.x > -30);
+  skillItems = skillItems.filter(c => !c.taken && c.x > -30);
+
+  /* score (in Superman mode each passed pipe also burns one of the 10) */
+  pipes.forEach(p => {
+    if (!p.counted && p.x + (p.w || 64) < ham.x - ham.r){
+      p.counted = true;
+      const prevScore = score;
+      score++; sndScore();
+      if (p.golden){ goldenPassed++; score += 2; floater(ham.x + 18, ham.y - 56, tt('fGolden'), '#facc15'); sndBig(); }
+      if (p.breathAmp) breathPassed++;
+      if (p.boss){ bossKills++; score += 4; floater(ham.x + 22, ham.y - 60, tt('fBossDown'), '#f87171'); sndFanfare(); burst(ham.x + 30, ham.y, '#f87171', 20); }
+      if (activeChallenge && !challengeWon && score > activeChallenge.score){
+        challengeWon = true;
+        floater(W / 2, 168, tt('fChalPassed', { name: activeChallenge.name.toUpperCase() }), '#4ade80');
+        sndFanfare(); burst(ham.x + 40, ham.y - 10, '#4ade80', 24);
+      }
+      if (superLeft <= 0){
+        const dy = Math.abs(ham.y - p.gapY);
+        if (dy <= 16){
+          perfectStreak++; perfectMax = Math.max(perfectMax, perfectStreak);
+          floater(ham.x + 18, ham.y - 30, perfectStreak > 1 ? '⭐ PERFECT x' + perfectStreak : '⭐ PERFECT!', '#fde047');
+          if (perfectStreak % 5 === 0){ score += 2; floater(ham.x + 18, ham.y - 54, tt('fPerfect'), '#f0abfc'); sndBig(); }
+        } else if (p.gap / 2 - ham.r - dy < 14){
+          nearMiss++; shakeT = Math.max(shakeT, .16);
+          floater(ham.x + 18, ham.y - 30, tt('fNearMiss'), '#fda4af');
+        } else perfectStreak = 0;
+      } else perfectStreak = 0;
+      if (prevScore < Math.floor(score / 10) * 10 + 10 && Math.floor(score / 10) > Math.floor(prevScore / 10) && score >= 10){
+        floater(W / 2, 128, tt('fMilestone', { n: Math.floor(score / 10) * 10 }), '#fde047');
+        sndFanfare(); burst(ham.x + 30, ham.y - 10, '#facc15', 14);
+      }
+      if (superLeft > 0){
+        superLeft--;
+        if (superLeft <= 3 && superLeft > 0) superTickAt = performance.now();
+        if (superLeft === 3){ floater(ham.x + 10, ham.y - 40, tt('fSuperEnd'), '#f87171'); sndAlarm(); }
+        else if (superLeft === 2 || superLeft === 1) sndWarn();
+        else if (superLeft === 0){
+          /* do NOT just drop the player: 0.9s of assisted safe landing */
+          handbackT = .9; sndLand();
+          floater(ham.x + 10, ham.y - 42, tt('fHandback'), '#7dd3fc');
+        }
+      }
+    }
+  });
+
+  /* aura orbs: magnet pull in Superman mode, then collect */
+  aurasArr.forEach(c => {
+    if (superLeft > 0){
+      const dx = ham.x - c.x, dy = ham.y - c.y, d2 = dx * dx + dy * dy;
+      if (d2 < 140 * 140){ c.x += dx * 7 * dt; c.y += dy * 7 * dt; }
+    }
+    const dx = c.x - ham.x, dy = c.y - ham.y, rr = c.big ? 42 : 30;
+    if (dx * dx + dy * dy < rr * rr){
+      c.taken = true;
+      const v = c.big ? 2 : 1;
+      auraCount += v; addAuraProgress(v);
+      chainN++; chainT = 2.5; chainMax = Math.max(chainMax, chainN);
+      if (chainN >= 3) floater(c.x, c.y - 36, tt('fChain', { n: chainN }), '#fb923c');
+      if (chainN % 8 === 0){ addAuraProgress(1); floater(ham.x + 16, ham.y - 54, tt('fChainBonus', { n: chainN }), '#fb923c'); }
+      checkAch();
+      if (c.big){ bigCollected++; sndBig(); floater(c.x, c.y - 20, tt('fBigAura'), '#f0abfc'); burst(c.x, c.y, '#f0abfc', 18); }
+      else { sndAura(); burst(c.x, c.y, '#c084fc', 10); }
+    }
+  });
+
+  /* skill items */
+  skillItems.forEach(c => {
+    const dx = c.x - ham.x, dy = c.y - ham.y;
+    if (dx * dx + dy * dy < 36 * 36){ c.taken = true; activateSkill(c.type, c.x, c.y); }
+  });
+
+  /* portals: fly through the ring's heart to enter the mini-game */
+  for (const c of portals){
+    const dx = c.x - ham.x, dy = c.y - ham.y;
+    if (dx * dx + dy * dy < 30 * 30){ c.taken = true; enterWheel(); return; }
+  }
+
+  /* gift boxes */
+  for (const c of gifts){
+    const dx = c.x - ham.x, dy = c.y - ham.y;
+    if (dx * dx + dy * dy < 34 * 34){ c.taken = true; openGift(c); }
+  }
+
+  /* green gates: entering the squeeze is the player's choice */
+  for (const c of crushPortals){
+    const dx = c.x - ham.x, dy = c.y - ham.y;
+    if (dx * dx + dy * dy < 30 * 30){ c.taken = true; enterCrush(); return; }
+  }
+
+  /* collisions */
+  const ghost = superLeft > 0 || invulnT > 0 || handbackT > 0;
+  if (ham.y + ham.r >= PLAY_H || ham.y - ham.r <= 0){
+    if (ghost){ ham.y = Math.min(Math.max(ham.y, ham.r + 2), PLAY_H - ham.r - 2); ham.vy = ham.y > PLAY_H / 2 ? -330 : 330; }
+    else if (!trySurviveHit(null)){ startDeath(); return; }
+  }
+  for (const p of pipes){
+    if (ham.x + ham.r - 4 > p.x && ham.x - ham.r + 4 < p.x + (p.w || 64)){
+      if (ham.y - ham.r + 5 < p.gapY - p.gap / 2 || ham.y + ham.r - 5 > p.gapY + p.gap / 2){
+        if (ghost) continue;
+        if (!trySurviveHit(p.gapY)){ if (p.boss) diedByBoss = p.bossN; startDeath(); return; }
+      }
+    }
+  }
+}
+
+/* ================= BAMBOO SQUEEZE PHASE =================
+   A short interlude in the main run (first at 15 points, then every
+   +20): two bamboo walls fill the screen and the free band between
+   them shrinks 320 -> 128px over ~9s. Gravity drags the hamster
+   down hard — mash Space/tap to hold him in the middle. Touching a
+   wall costs shield/heart like a normal hit; surviving pays out. */
+function enterCrush(){
+  state = 'crush';
+  CR = { t: 9, dur: 9, band: PLAY_H, top: 0, bot: PLAY_H, invuln: 0, cy: PLAY_H / 2, orbs: [], orbT: 1.6, holdT: 0, combo: 0, auraGot: 0, surged: false, driftT: 0 };
+  pipes = []; aurasArr = []; skillItems = []; portals = []; gifts = []; crushPortals = [];
+  ham.vy = 0;
+  sndAlarm();
+  floater(W / 2, 118, tt('fCrushTitle'), '#fde047');
+  floater(W / 2, 146, tt('fCrushHint'), '#ffffff');
+}
+function crushHit(){
+  if (shieldCharges > 0){ shieldCharges--; shieldBlocks++; sndBlock(); floater(ham.x, ham.y - 38, tt('fShield'), '#7dd3fc'); }
+  else if (hp > 1){ hp--; beep(140, .2, 'sawtooth', .09); floater(ham.x, ham.y - 38, tt('fHeart', { n: hp }), '#fda4af'); }
+  else { startDeath(); return false; }
+  shakeT = Math.max(shakeT, .3); burst(ham.x, ham.y, '#f87171', 14);
+  ham.y = CR.cy; ham.vy = 0; CR.invuln = 1; CR.holdT = 0;
+  return true;
+}
+function exitCrush(){
+  CR = null; state = 'playing'; crushPassed++;
+  score += 5; auraCount += 3; addAuraProgress(3);
+  invulnT = Math.max(invulnT, 1.5);
+  ham.y = PLAY_H / 2; ham.vy = 0; spawnDist = -160;
+  floater(ham.x + 44, ham.y - 58, tt('fCrushDone'), '#4ade80');
+  sndFanfare();
+}
+function updateCrush(dt){
+  floaters = floaters.filter(f => (f.life -= dt) > 0);
+  floaters.forEach(f => f.y -= 34 * dt);
+  CR.t -= dt;
+  const e = CR.dur - CR.t;
+  if (e < .8) CR.band = PLAY_H + (320 - PLAY_H) * (e / .8);        /* walls slide in */
+  else CR.band = Math.max(128, 320 - 192 * Math.pow((e - .8) / (CR.dur - .8), 1.1));
+  if (CR.t <= 3){                                                   /* final surge */
+    if (!CR.surged){ CR.surged = true; sndAlarm(); floater(W / 2, 150, tt('fSurge'), '#f87171'); }
+    CR.band = Math.max(120, CR.band - (3 - CR.t) * 10);
+  }
+  /* the gap itself drifts up and down — track it, don't just hover.
+     In the finale the drift eases off so only the shrink fights you. */
+  CR.driftT += dt * (CR.t <= 3 ? .38 : 1);
+  const amp = 55 * Math.min(1, Math.max(0, (e - .8) / 1.2));
+  CR.cy = Math.min(PLAY_H - CR.band / 2 - 8, Math.max(CR.band / 2 + 8, PLAY_H / 2 + Math.sin(CR.driftT * .85) * amp));
+  CR.top = CR.cy - CR.band / 2; CR.bot = CR.cy + CR.band / 2;
+  if (CR.invuln > 0) CR.invuln -= dt;
+  ham.vy += 2100 * dt;
+  ham.y += ham.vy * dt;
+  if (ham.y - ham.r < CR.top || ham.y + ham.r > CR.bot){
+    if (CR.invuln > 0){ ham.y = Math.min(Math.max(ham.y, CR.top + ham.r), CR.bot - ham.r); ham.vy = 0; }
+    else if (!crushHit()) return;
+  }
+  /* aura drifting through the gap, riding the band's own rails */
+  CR.orbT -= dt;
+  if (CR.orbT <= 0){
+    const fr = [-.7, -.35, 0, .35, .7][Math.floor(rng() * 5)];
+    CR.orbs.push({ x: W + 30, f: fr, taken: false, ph: rng() * 6.28 });
+    CR.orbT = 1.8 + rng() * .9;
+  }
+  const sp = baseSpeed();
+  CR.orbs.forEach(o => { o.x -= sp * dt; o.y = CR.cy + o.f * (CR.band / 2 - 26); });
+  CR.orbs = CR.orbs.filter(o => o.x > -30 && !o.taken);
+  for (const o of CR.orbs){
+    const dx = o.x - ham.x, dy = o.y - ham.y;
+    if (dx * dx + dy * dy < 34 * 34){
+      o.taken = true; CR.auraGot++; crushAuraRun++;
+      auraCount++; addAuraProgress(1); sndAura(); burst(o.x, o.y, '#c084fc', 9);
+    }
+  }
+  /* hold-the-centre combo: 2 unbroken seconds in the ring = +1 Aura */
+  if (Math.abs(ham.y - CR.cy) <= 30 && CR.invuln <= 0){
+    CR.holdT += dt;
+    if (CR.holdT >= 2){
+      CR.holdT = 0; CR.combo++; crushAuraRun++;
+      auraCount++; addAuraProgress(1); sndBig();
+      floater(ham.x + 26, ham.y - 46, tt('fCrushCombo', { n: CR.combo }), '#fb923c');
+    }
+  } else CR.holdT = 0;
+  if (CR.t <= 0) exitCrush();
+}
+function drawCrush(){
+  ctx.save();
+  if (shakeT > 0 && state !== 'paused') ctx.translate((Math.random() - .5) * shakeT * 24, (Math.random() - .5) * shakeT * 24);
+  rect(0, 0, W, H, '#1b1035');
+  ctx.fillStyle = '#fef9c3';
+  wheelStars.forEach(st => { ctx.globalAlpha = .3 + .25 * Math.sin(performance.now() / 700 + st.x); ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.29); ctx.fill(); });
+  ctx.globalAlpha = 1;
+  /* the two bamboo walls, tiled from the game's own pipe art */
+  for (let x = -4; x < W; x += 62){
+    drawBamboo(x, -8, CR.top, 62, true, false, false);
+    drawBamboo(x, CR.bot, PLAY_H + 8, 62, false, false, false);
+  }
+  /* danger edges */
+  const pulse = .55 + .35 * Math.sin(performance.now() / (CR.t <= 3 ? 65 : 130));
+  ctx.fillStyle = 'rgba(248,113,113,' + pulse + ')';
+  ctx.fillRect(0, CR.top - 3, W, 4); ctx.fillRect(0, CR.bot - 1, W, 4);
+  ctx.font = '15px Segoe UI'; ctx.textAlign = 'center';
+  const bobA = Math.sin(performance.now() / 160) * 3;
+  ctx.fillText('▼', W / 2 - 30, CR.top - 8 + bobA); ctx.fillText('▼', W / 2 + 30, CR.top - 8 + bobA);
+  ctx.fillText('▲', W / 2 - 30, CR.bot + 18 - bobA); ctx.fillText('▲', W / 2 + 30, CR.bot + 18 - bobA);
+  /* centre target — rides the drifting gap */
+  const c = CR.cy;
+  ctx.save();
+  ctx.setLineDash([7, 7]); ctx.strokeStyle = 'rgba(250,204,21,.75)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(0, c); ctx.lineTo(W, c); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeStyle = 'rgba(250,204,21,.9)';
+  ctx.beginPath(); ctx.arc(ham.x, c, 27 + Math.sin(performance.now() / 200) * 2.5, 0, 6.29); ctx.stroke();
+  if (CR.holdT > 0){ ctx.strokeStyle = '#fb923c'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(ham.x, c, 34, -Math.PI / 2, -Math.PI / 2 + (CR.holdT / 2) * Math.PI * 2); ctx.stroke(); }
+  ctx.restore();
+  ctx.fillStyle = 'rgba(254,240,138,.95)'; ctx.font = '900 11px Segoe UI';
+  ctx.fillText(tt('fInZone'), ham.x, c - 36);
+  /* aura riding the gap */
+  CR.orbs.forEach(o => drawWheelAura(o.x, o.y || CR.cy, o.ph));
+  /* hamster */
+  const blink = CR.invuln > 0 && Math.floor(performance.now() / 90) % 2 === 0;
+  if (!blink) ctx.drawImage(hamsterFrames[Math.floor(frameTimer * 9) % 3], ham.x - 46, ham.y - 40, 92, 77);
+  if (state !== 'paused' && Math.random() < .3)
+    particles.push({ x: Math.random() * W, y: Math.random() < .5 ? CR.top : CR.bot, vx: 0, vy: (Math.random() - .5) * 30, life: .3, col: '#a7e08a', s: 2 });
+  particles.forEach(pt => { ctx.fillStyle = pt.col; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); });
+  /* floaters */
+  ctx.textAlign = 'center';
+  floaters.forEach(f => {
+    ctx.save(); ctx.globalAlpha = Math.min(1, f.life * 1.6);
+    ctx.font = '900 17px Segoe UI'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,8,40,.7)';
+    ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
+  });
+  /* HUD */
+  rect(0, 0, W, 58, 'rgba(0,0,0,.34)');
+  ctx.fillStyle = '#fff'; ctx.font = '900 20px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText(tt('hudCrushTitle', { t: Math.max(0, Math.ceil(CR.t)) }), W / 2, 37);
+  ctx.font = '13px Segoe UI'; ctx.textAlign = 'left';
+  ctx.fillText('❤️'.repeat(Math.max(0, hp)) + '🖤'.repeat(Math.max(0, MAXHP - hp)), 10, 36);
+  ctx.textAlign = 'right'; ctx.font = 'bold 14px Segoe UI';
+  ctx.fillText(tt('hudScore', { s: score }), W - 12, 36);
+  ctx.textAlign = 'left'; ctx.font = 'bold 11px Segoe UI'; ctx.fillStyle = '#fca5a5';
+  ctx.fillText('KHE ' + Math.round(CR.band) + 'px', 10, 54);
+  rect(64, 46, (W - 76) * Math.min(1, CR.band / 320), 7, '#f87171');
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.font = 'bold 12.5px Segoe UI'; ctx.textAlign = 'center';
+  if (CR.t <= 3 && Math.floor(performance.now() / 220) % 2 === 0){
+    ctx.fillStyle = '#f87171'; ctx.font = '900 17px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText(tt('hudSurge'), W / 2, 88);
+  }
+  if (CR.combo > 0){
+    ctx.fillStyle = '#fb923c'; ctx.font = '900 13px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText(tt('hudCrushCombo', { n: CR.combo }), W / 2, 110);
+  }
+  ctx.fillStyle = 'rgba(255,255,255,.92)'; ctx.font = 'bold 12.5px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText(tt('hudCrushTap'), W / 2, PLAY_H + 34);
+  ctx.restore();
+}
+
+/* ================= CAGE RUNNER MINI-GAME =================
+   Entered through a portal. 10 seconds: the hamster runs along the
+   INSIDE of a big round cage while the cage turns under him. Aura
+   and obstacles ride the inner rim toward him — eat the Aura, jump
+   (toward the hub) over the obstacles. 3 hearts of its own. */
+function enterWheel(){
+  state = 'wheel';
+  W2 = { t: 10, dur: 10, hearts: 3, aura: 0, h: 0, vy: 0, grounded: true,
+         blocks: [], orbs: [], spawnT: 1.2, orbT: .9, invuln: 0, phi: 0, dist: 0, speed: 250, jumpBuf: 0 };
+  burst(ham.x, ham.y, '#c084fc', 22); sndBig();
+  floater(W / 2, 128, tt('fWheelTitle'), '#f0abfc');
+  floater(W / 2, 156, tt('fWheelHint'), '#e9d5ff');
+}
+function doWheelJump(){ W2.vy = 920; W2.grounded = false; W2.jumpBuf = 0; beep(520, .08, 'square', .05); }
+function wheelJump(){
+  if (!W2) return;
+  if (W2.grounded) doWheelJump();
+  else W2.jumpBuf = .18;   /* tapped mid-air: remember it, fire on landing */
+}
+function exitWheel(){
+  const gained = W2 ? W2.aura : 0;
+  wheelAuraRun += gained;
+  if (gained > 0){ auraCount += gained; addAuraProgress(gained); }
+  W2 = null;
+  state = 'playing';
+  /* safe re-entry: brief invulnerability + settle into the next gap */
+  invulnT = Math.max(invulnT, 1.5);
+  const ahead = pipes.filter(q => q.x + (q.w || 64) >= ham.x - 10).sort((a, b) => a.x - b.x)[0];
+  if (ahead) ham.y = ahead.gapY;
+  ham.vy = 0;
+  floater(ham.x + 34, ham.y - 58, tt('fWheelDone', { n: gained }), '#f0abfc');
+  if (gained >= 10) sndFanfare(); else sndBig();
+}
+function updateWheel(dt){
+  floaters = floaters.filter(f => (f.life -= dt) > 0);
+  floaters.forEach(f => f.y -= 34 * dt);
+  W2.t -= dt;
+  if (W2.t <= 0){ exitWheel(); return; }
+  W2.speed = 250 + (W2.dur - W2.t) * 13;
+  const om = W2.speed / CAGE.R;             /* cage angular speed */
+  W2.phi += om * dt;
+  W2.dist += W2.speed * dt;
+  if (W2.invuln > 0) W2.invuln -= dt;
+  /* jump: inward toward the hub, gravity pulls back to the rim
+     (h = height above the rim, positive toward the hub).
+     Snappy arc: rises hard, falls faster; a buffered tap re-jumps
+     the very frame he lands, so input never feels eaten. */
+  if (W2.jumpBuf > 0) W2.jumpBuf -= dt;
+  W2.vy -= (W2.vy > 0 ? 2550 : 3350) * dt;
+  W2.h += W2.vy * dt;
+  if (W2.h <= 0){
+    W2.h = 0; W2.vy = 0;
+    if (W2.jumpBuf > 0) doWheelJump(); else W2.grounded = true;
+  }
+  const BOTTOM = Math.PI / 2, SPAWN_A = BOTTOM - 1.85;
+  /* Everything rides the rim at the same angular speed, so spacing
+     decided at spawn time lasts forever: keep ~100px of rim between
+     any obstacle and any Aura, or the Aura would be uncollectable. */
+  const CLEAR = .52;
+  const blockedAt = a => W2.blocks.some(b => Math.abs(b.a - a) < CLEAR) || W2.orbs.some(o => Math.abs(o.a - a) < CLEAR);
+  /* obstacle spawn, riding the rim */
+  W2.spawnT -= dt;
+  if (W2.spawnT <= 0){
+    if (blockedAt(SPAWN_A)) W2.spawnT = .15;      /* wait for a clean window */
+    else {
+      W2.blocks.push({ a: SPAWN_A, hgt: 30 + rng() * 22, rock: rng() < .45 });
+      W2.spawnT = (240 + rng() * 100) / W2.speed;
+    }
+  }
+  /* aura groups: a low line along the rim, or an arc to jump for.
+     The group spans SPAWN_A-4*step .. SPAWN_A — check both ends. */
+  W2.orbT -= dt;
+  if (W2.orbT <= 0){
+    const step = 27 / CAGE.R;
+    if (blockedAt(SPAWN_A) || blockedAt(SPAWN_A - 4 * step)) W2.orbT = .15;
+    else {
+      const arc = rng() < .5, n = 5;
+      for (let i = 0; i < n; i++)
+        W2.orbs.push({ a: SPAWN_A - i * step, hOff: arc ? 24 + Math.sin(i / (n - 1) * Math.PI) * 88 : 24, taken: false, ph: rng() * 6.28 });
+      W2.orbT = 1.5 + rng() * 1.3;
+    }
+  }
+  W2.blocks.forEach(b => b.a += om * dt);
+  W2.blocks = W2.blocks.filter(b => b.a < BOTTOM + 1.6);
+  W2.orbs.forEach(o => o.a += om * dt);
+  W2.orbs = W2.orbs.filter(o => o.a < BOTTOM + 1.6 && !o.taken);
+  /* collisions at the bottom of the cage, where the hamster runs */
+  for (const b of W2.blocks){
+    if (W2.invuln <= 0 && Math.abs(b.a - BOTTOM) < .15 && W2.h < b.hgt - 6){
+      W2.hearts--; W2.invuln = 1.1; shakeT = Math.max(shakeT, .3);
+      beep(150, .18, 'sawtooth', .09);
+      floater(CAGE.cx + 12, CAGE.cy + 90, tt('fWheelHurt', { n: W2.hearts }), '#fda4af');
+      if (W2.hearts <= 0){ exitWheel(); return; }
+    }
+  }
+  const centerH = W2.h + 26;
+  for (const o of W2.orbs){
+    if (Math.abs(o.a - BOTTOM) < .19 && Math.abs(centerH - o.hOff) < 40){
+      o.taken = true; W2.aura++; sndAura();
+      burst(CAGE.cx, CAGE.cy + CAGE.R - o.hOff, '#c084fc', 7);
+    }
+  }
+}
+function drawWheelAura(x, y, ph){
+  const t = performance.now() / 1000 + ph;
+  const bob = Math.sin(t * 2.4) * 3;
+  ctx.save(); ctx.translate(x, y + bob);
+  ctx.globalAlpha = .22; ctx.fillStyle = '#a855f7';
+  ctx.beginPath(); ctx.arc(0, 0, 17, 0, 6.29); ctx.fill();
+  ctx.globalAlpha = 1;
+  const og = ctx.createRadialGradient(-3, -4, 2, 0, 0, 11);
+  og.addColorStop(0, '#f5d0fe'); og.addColorStop(.45, '#c084fc'); og.addColorStop(1, '#7c3aed');
+  ctx.fillStyle = og; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 6.29); ctx.fill();
+  ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.fillRect(-1, -5, 2, 10); ctx.fillRect(-5, -1, 10, 2);
+  ctx.restore();
+}
+function drawWheel(){
+  ctx.save();
+  if (shakeT > 0 && state !== 'paused') ctx.translate((Math.random() - .5) * shakeT * 22, (Math.random() - .5) * shakeT * 22);
+  /* night carnival sky */
+  rect(0, 0, W, H, '#171233');
+  ctx.fillStyle = '#fef9c3';
+  wheelStars.forEach(st => { ctx.globalAlpha = .35 + .3 * Math.sin(performance.now() / 700 + st.x); ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.29); ctx.fill(); });
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = '#fefce8'; ctx.beginPath(); ctx.arc(368, 66, 24, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#fde68a'; ctx.beginPath(); ctx.arc(360, 60, 20, 0, 6.29); ctx.fill();
+  const cx = CAGE.cx, cy = CAGE.cy, R = CAGE.R;
+  /* floor shadow under the cage */
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(cx, cy + R + 22, 168, 13, 0, 0, 6.29); ctx.fill();
+  /* cage back disc */
+  ctx.fillStyle = 'rgba(34,24,70,.66)';
+  ctx.beginPath(); ctx.arc(cx, cy, R + 10, 0, 6.29); ctx.fill();
+  /* spokes turning with the cage */
+  ctx.strokeStyle = '#8a5a24'; ctx.lineWidth = 5;
+  for (let k = 0; k < 12; k++){
+    const a = W2.phi + k * Math.PI / 6;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * R, cy + Math.sin(a) * R); ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(176,122,63,.45)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, R * .55, 0, 6.29); ctx.stroke();
+  ctx.fillStyle = '#b07a3f'; ctx.beginPath(); ctx.arc(cx, cy, 17, 0, 6.29); ctx.fill();
+  ctx.fillStyle = '#6d4a1e'; ctx.beginPath(); ctx.arc(cx, cy, 8, 0, 6.29); ctx.fill();
+  /* rim */
+  ctx.strokeStyle = '#8a5a24'; ctx.lineWidth = 14;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 7, 0, 6.29); ctx.stroke();
+  ctx.strokeStyle = '#b07a3f'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.29); ctx.stroke();
+  /* obstacles standing on the inner rim, pointing at the hub */
+  for (const b of W2.blocks){
+    ctx.save(); ctx.translate(cx, cy); ctx.rotate(b.a);
+    if (b.rock){
+      rect(R - b.hgt, -13, b.hgt, 26, '#78716c'); rect(R - b.hgt + 5, -9, Math.max(4, b.hgt - 12), 18, '#a8a29e');
+      rect(R - b.hgt + 13, -5, 8, 10, '#57534e');
+    } else {
+      rect(R - b.hgt, -11, b.hgt, 22, '#58b368'); rect(R - b.hgt, -7, b.hgt, 4, '#a7e08a');
+      rect(R - b.hgt + 6, -11, 4, 22, '#2f7040'); rect(R - 9, -11, 4, 22, '#2f7040');
+    }
+    ctx.restore();
+  }
+  /* aura riding the rim */
+  W2.orbs.forEach(o => drawWheelAura(cx + (R - o.hOff) * Math.cos(o.a), cy + (R - o.hOff) * Math.sin(o.a), o.ph));
+  /* the runner, at the bottom of the cage, current skin */
+  const blink = W2.invuln > 0 && Math.floor(performance.now() / 90) % 2 === 0;
+  if (!blink){
+    const frame = hamsterFrames[Math.floor(W2.dist / 44) % 3];
+    ctx.drawImage(frame, cx - 46, cy + R - 26 - W2.h - 38, 92, 77);
+  }
+  /* front rim over the runner's feet — sells "inside the cage" */
+  ctx.strokeStyle = 'rgba(226,192,140,.5)'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(cx, cy, R + 2, 0, 6.29); ctx.stroke();
+  /* sprint dust at the rim */
+  if (state !== 'paused' && W2.grounded && Math.random() < .35)
+    particles.push({ x: cx - 28, y: cy + R - 4, vx: -50 - Math.random() * 40, vy: -20 - Math.random() * 20, life: .35, col: '#d6c9b8', s: 2 + Math.random() * 2 });
+  particles.forEach(pt => { ctx.fillStyle = pt.col; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); });
+  /* floaters */
+  ctx.textAlign = 'center';
+  floaters.forEach(f => {
+    ctx.save(); ctx.globalAlpha = Math.min(1, f.life * 1.6);
+    ctx.font = '900 17px Segoe UI'; ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,8,40,.7)';
+    ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
+  });
+  /* HUD */
+  rect(0, 0, W, 58, 'rgba(0,0,0,.32)');
+  ctx.fillStyle = '#fff'; ctx.font = '900 21px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText('⏱ ' + Math.max(0, Math.ceil(W2.t)) + 's', W / 2, 38);
+  ctx.font = '16px Segoe UI'; ctx.textAlign = 'left';
+  ctx.fillText('❤️'.repeat(Math.max(0, W2.hearts)) + '🖤'.repeat(3 - Math.max(0, W2.hearts)), 10, 37);
+  ctx.textAlign = 'right'; ctx.font = 'bold 16px Segoe UI';
+  ctx.fillText('✨ +' + W2.aura, W - 12, 37);
+  rect(0, 58, W * Math.max(0, W2.t) / W2.dur, 5, '#c084fc');
+  ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.font = 'bold 12.5px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText(tt('wheelCaption'), W / 2, cy + R + 48);
+  ctx.restore();
+}
+
+/* ---------------- Draw ---------------- */
+function rect(x, y, w, h, col){ ctx.fillStyle = col; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+function drawSkillItem(c){
+  const t = performance.now() / 1000 + c.ph;
+  const bob = Math.sin(t * 2.4) * 3.5, pulse = 1 + Math.sin(t * 3.4) * .12;
+  const isSuper = c.type === 'super';
+  ctx.save(); ctx.translate(c.x, c.y + bob);
+  ctx.globalAlpha = .20; ctx.fillStyle = isSuper ? '#f59e0b' : '#38bdf8';
+  ctx.beginPath(); ctx.arc(0, 0, 24 * pulse, 0, 6.29); ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.beginPath(); ctx.arc(0, 0, 16, 0, 6.29);
+  ctx.fillStyle = isSuper ? '#fef3c7' : '#e0f2fe'; ctx.fill();
+  ctx.lineWidth = 2.4; ctx.strokeStyle = isSuper ? '#d97706' : '#0284c7'; ctx.stroke();
+  if (isSuper){
+    /* red cape + gold star */
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath(); ctx.moveTo(-9, -8); ctx.lineTo(6, -10); ctx.lineTo(3, 4); ctx.lineTo(9, 11); ctx.lineTo(-4, 8); ctx.lineTo(-10, 12); ctx.lineTo(-7, 2); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#facc15';
+    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(2, -1); ctx.lineTo(7, 0); ctx.lineTo(3, 3); ctx.lineTo(4, 8); ctx.lineTo(0, 5); ctx.lineTo(-4, 8); ctx.lineTo(-3, 3); ctx.lineTo(-7, 0); ctx.lineTo(-2, -1); ctx.closePath(); ctx.fill();
+  } else {
+    /* shield */
+    ctx.fillStyle = '#2563eb';
+    ctx.beginPath(); ctx.moveTo(0, -11); ctx.lineTo(10, -7); ctx.lineTo(10, 2); ctx.quadraticCurveTo(10, 10, 0, 13);
+    ctx.quadraticCurveTo(-10, 10, -10, 2); ctx.lineTo(-10, -7); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#bfdbfe'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#bfdbfe'; ctx.fillRect(-2, -7, 4, 13); ctx.fillRect(-6, -2, 12, 4);
+  }
+  ctx.restore();
+  ctx.fillStyle = '#fff'; ctx.font = '900 10px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText(isSuper ? 'SUPER' : 'SHIELD', c.x, c.y + 34);
+}
+function drawGift(c){
+  const t = performance.now() / 1000 + c.ph;
+  const bob = Math.sin(t * 2.6) * 3.5;
+  ctx.save(); ctx.translate(c.x, c.y + bob);
+  ctx.globalAlpha = .2; ctx.fillStyle = '#f59e0b';
+  ctx.beginPath(); ctx.arc(0, 0, 26 + Math.sin(t * 4) * 3, 0, 6.29); ctx.fill();
+  ctx.globalAlpha = 1;
+  rect(-13, -4, 26, 17, '#dc2626'); rect(-15, -11, 30, 8, '#b91c1c');
+  rect(-3, -11, 6, 24, '#facc15');
+  ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2.4;
+  ctx.beginPath(); ctx.arc(-4.5, -13, 3.6, 0, 6.29); ctx.stroke();
+  ctx.beginPath(); ctx.arc(4.5, -13, 3.6, 0, 6.29); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  const sx = Math.sin(t * 5) * 8, sy = Math.cos(t * 4.2) * 6;
+  ctx.fillRect(sx - 1, -20 + sy * .3, 2, 2); ctx.fillRect(-sx + 8, -16 + sy, 2, 2);
+  ctx.restore();
+  ctx.fillStyle = '#fef3c7'; ctx.font = '900 10px Segoe UI'; ctx.textAlign = 'center';
+  ctx.fillText(tt('giftLbl'), c.x, c.y + 30);
+}
+function drawPortal(c){
+  const st = PORTAL_STYLES[c.kind || 'mini'];
+  const t = performance.now() / 1000 + c.ph;
+  const pulse = 1 + Math.sin(t * 3.2) * .08;
+  ctx.save(); ctx.translate(c.x, c.y);
+  /* soft halo */
+  const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 48 * pulse);
+  g.addColorStop(0, st.glow); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 48 * pulse, 0, 6.29); ctx.fill();
+  /* three swirl arms, alternating directions */
+  for (let k = 0; k < 3; k++){
+    ctx.save(); ctx.rotate(t * (1.4 + k * .5) * (k % 2 ? -1 : 1) + k * 2.1);
+    ctx.strokeStyle = st.ring[k]; ctx.lineWidth = 5 - k; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(0, 0, (30 - k * 7) * pulse, .2, 4.4); ctx.stroke();
+    ctx.restore();
+  }
+  /* sparkles orbiting the rim */
+  ctx.fillStyle = st.spark;
+  for (let i = 0; i < 5; i++){
+    const a = t * 2.2 + i * 1.2566, rr = 35 * pulse + Math.sin(t * 3 + i) * 3;
+    ctx.globalAlpha = .45 + .5 * Math.sin(t * 4 + i * 2);
+    ctx.beginPath(); ctx.arc(Math.cos(a) * rr, Math.sin(a) * rr, 2.2, 0, 6.29); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  /* bright vortex core */
+  const cg = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
+  cg.addColorStop(0, '#ffffff'); cg.addColorStop(.55, st.core); cg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = cg; ctx.beginPath(); ctx.arc(0, 0, 14, 0, 6.29); ctx.fill();
+  ctx.restore();
+  /* label pill */
+  ctx.font = '900 10px Segoe UI'; ctx.textAlign = 'center';
+  const lbl = tt(c.kind === 'crush' ? 'portalCrush' : 'portalMini'); const wTxt = lbl.length * 6.6 + 16;
+  ctx.fillStyle = 'rgba(10,6,24,.55)';
+  ctx.fillRect(c.x - wTxt / 2, c.y + 36, wTxt, 15);
+  ctx.fillStyle = st.labelCol;
+  ctx.fillText(lbl, c.x, c.y + 47);
+}
+function drawPausedOverlay(){
+  ctx.fillStyle = 'rgba(10,5,25,.55)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff'; ctx.font = '900 26px Courier'; ctx.textAlign = 'center';
+  ctx.fillText(tt('pausedLbl'), W / 2, H / 2);
+}
+function draw(){
+  if (state === 'wheel'){ drawWheel(); return; }
+  if (state === 'crush'){ drawCrush(); return; }
+  /* a paused mini-game keeps its own scene under the PAUSED overlay */
+  if (state === 'paused' && pausedFrom === 'wheel' && W2){ drawWheel(); drawPausedOverlay(); return; }
+  if (state === 'paused' && pausedFrom === 'crush' && CR){ drawCrush(); drawPausedOverlay(); return; }
+  ctx.save();
+  if (shakeT > 0) ctx.translate((Math.random() - .5) * shakeT * 26, (Math.random() - .5) * shakeT * 26);
+  const night = wheel.online && !isSpinning();
+  /* sky */
+  const sky = ctx.createLinearGradient(0, 0, 0, PLAY_H);
+  if (night){ sky.addColorStop(0, '#1e1b4b'); sky.addColorStop(1, '#43357a'); }
+  else {
+    const pals = [['#6ec6e8', '#cdeffd'], ['#f7a56b', '#ffe3b3'], ['#8b7fd4', '#e3d7ff'], ['#5fd0c5', '#d9fbe8']];
+    const pal = pals[Math.floor(score / 10) % 4];
+    sky.addColorStop(0, pal[0]); sky.addColorStop(1, pal[1]);
+  }
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, PLAY_H);
+
+  /* sun / moon */
+  if (night){
+    rect(338, 34, 34, 34, '#e0e7ff'); rect(330, 42, 50, 18, '#e0e7ff'); rect(346, 26, 18, 50, '#e0e7ff');
+    rect(348, 44, 6, 6, '#c7d2fe'); rect(358, 56, 5, 5, '#c7d2fe');
+    for (let i = 0; i < 22; i++){ const sx = (i * 83) % W, sy = (i * 47) % 170; rect(sx, sy, 3, 3, 'rgba(255,255,255,.75)'); }
+  } else {
+    rect(336, 30, 38, 38, '#fde047'); rect(328, 38, 54, 22, '#fde047'); rect(344, 22, 22, 54, '#fde047');
+  }
+
+  /* the big wheel (WHEELY9000) turning at the real RPM, behind the hills */
+  ctx.save();
+  ctx.translate(356, 428); ctx.rotate(wheelAngle);
+  ctx.strokeStyle = night ? 'rgba(224,231,255,.5)' : 'rgba(120,72,20,.45)';
+  ctx.lineWidth = 7; ctx.beginPath(); ctx.arc(0, 0, 88, 0, 6.29); ctx.stroke();
+  ctx.lineWidth = 5;
+  for (let i = 0; i < 6; i++){ ctx.rotate(Math.PI / 3); ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(88, 0); ctx.stroke(); }
+  ctx.restore();
+  rect(350, 428, 10, 80, 'rgba(90,50,15,.55)');
+
+  /* clouds */
+  clouds.forEach(c => {
+    const col = night ? 'rgba(199,210,254,.5)' : 'rgba(255,255,255,.92)';
+    ctx.fillStyle = col;
+    ctx.fillRect(c.x, c.y, 52 * c.s, 13 * c.s); ctx.fillRect(c.x + 10 * c.s, c.y - 8 * c.s, 30 * c.s, 9 * c.s);
+  });
+
+  /* hills */
+  ctx.fillStyle = night ? '#2f2a5e' : '#7ec850';
+  for (let x = -120; x < W + 120; x += 120){
+    const hx = x + hillsOff * -1 % 120;
+    ctx.beginPath(); ctx.arc(x - (hillsOff % 120) + 60, PLAY_H + 42, 78, Math.PI, 0); ctx.fill();
+  }
+
+  /* obstacles: bamboo grove columns */
+  pipes.forEach(p => drawPipe(p));
+  /* LANDING TARGET: while the warning runs (or while landing), outline
+     the gap the player must thread next — no more guessing. */
+  if (state === 'playing' && ((superLeft >= 1 && superLeft <= 3) || handbackT > 0)){
+    const tgt = pipes.filter(q => !q.counted && q.x + (q.w || 64) >= ham.x - 10).sort((a, b) => a.x - b.x)[0];
+    if (tgt){
+      const pulse = .55 + .45 * Math.sin(performance.now() / 110);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250,204,21,' + pulse + ')'; ctx.lineWidth = 4;
+      ctx.strokeRect(tgt.x - 3, tgt.gapY - tgt.gap / 2, (tgt.w || 64) + 6, tgt.gap);
+      ctx.fillStyle = 'rgba(250,204,21,' + pulse + ')';
+      ctx.font = '900 12px Segoe UI'; ctx.textAlign = 'center';
+      ctx.fillText(tt('landingLbl'), tgt.x + (tgt.w || 64) / 2, tgt.gapY - tgt.gap / 2 - 10);
+      ctx.restore();
+    }
+  }
+
+  /* Aura orbs (in-game collectible — NOT official Genesis Aura) */
+  aurasArr.forEach(c => {
+    const t = performance.now() / 1000 + c.ph;
+    const bob = Math.sin(t * 2.4) * 3.5;
+    const pulse = 1 + Math.sin(t * 3.4) * .13;
+    ctx.save(); ctx.translate(c.x, c.y + bob);
+    if (c.big) ctx.scale(1.75, 1.75);
+    /* outer glow */
+    ctx.globalAlpha = .16; ctx.fillStyle = '#a855f7';
+    ctx.beginPath(); ctx.arc(0, 0, 21 * pulse, 0, 6.29); ctx.fill();
+    ctx.globalAlpha = .28;
+    ctx.beginPath(); ctx.arc(0, 0, 15 * pulse, 0, 6.29); ctx.fill();
+    ctx.globalAlpha = 1;
+    /* orb body: violet gradient */
+    const og = ctx.createRadialGradient(-4, -5, 2, 0, 0, 12);
+    og.addColorStop(0, '#f5d0fe'); og.addColorStop(.45, '#c084fc'); og.addColorStop(1, '#7c3aed');
+    ctx.fillStyle = og; ctx.beginPath(); ctx.arc(0, 0, 11, 0, 6.29); ctx.fill();
+    ctx.strokeStyle = '#e9d5ff'; ctx.lineWidth = 1.6; ctx.stroke();
+    /* 4-point star sparkle in the core */
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, -7); ctx.quadraticCurveTo(1.6, -1.6, 7, 0); ctx.quadraticCurveTo(1.6, 1.6, 0, 7);
+    ctx.quadraticCurveTo(-1.6, 1.6, -7, 0); ctx.quadraticCurveTo(-1.6, -1.6, 0, -7);
+    ctx.fill();
+    /* two orbiting gold sparks */
+    for (let i = 0; i < 2; i++){
+      const a = t * 2.2 + i * Math.PI;
+      ctx.fillStyle = '#facc15';
+      ctx.fillRect(Math.cos(a) * 15 - 1.5, Math.sin(a) * 15 - 1.5, 3, 3);
+    }
+    ctx.restore();
+    if (c.big){
+      ctx.fillStyle = '#fde047'; ctx.font = '900 14px Courier'; ctx.textAlign = 'center';
+      ctx.fillText('+2', c.x, c.y - 36);
+    }
+  });
+
+  /* skill items: Superman cape badge / Shield badge */
+  skillItems.forEach(c => drawSkillItem(c));
+  portals.forEach(c => drawPortal(c));
+  gifts.forEach(c => drawGift(c));
+  crushPortals.forEach(c => drawPortal(c));
+
+  /* particles */
+  particles.forEach(p => rect(p.x, p.y, p.s, p.s, p.col));
+
+  /* floating texts (+2, skill activations, shield blocks) */
+  floaters.forEach(f => {
+    ctx.save(); ctx.globalAlpha = Math.min(1, f.life * 1.4);
+    ctx.font = '900 14px Segoe UI'; ctx.textAlign = 'center';
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,8,40,.7)';
+    ctx.strokeText(f.text, f.x, f.y); ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, f.y);
+    ctx.restore();
+  });
+
+  /* ghost record line: your previous best distance, race it! */
+  if (state === 'playing' && (activeChallenge ? activeChallenge.meters * 46 : bestDist) > 0 && !ghostPassed){
+    const dx = (activeChallenge ? activeChallenge.meters * 46 : bestDist) - distPx;
+    if (dx > 0 && dx < W){
+      const gx = ham.x + dx;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(250,204,21,.85)'; ctx.lineWidth = 3; ctx.setLineDash([9, 7]);
+      ctx.beginPath(); ctx.moveTo(gx, 62); ctx.lineTo(gx, PLAY_H); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#facc15'; ctx.beginPath();
+      ctx.moveTo(gx, 66); ctx.lineTo(gx + 26, 74); ctx.lineTo(gx, 82); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#451a03'; ctx.font = '900 9.5px Segoe UI'; ctx.textAlign = 'left';
+      ctx.fillText(activeChallenge ? activeChallenge.name.toUpperCase().slice(0, 10) : tt('recShort'), gx + 4, 77);
+      ctx.restore();
+    }
+  }
+
+  /* hamster */
+  const frame = state === 'playing' ? (Math.floor(frameTimer * 14) % 3) : 1;
+  const tilt = superLeft > 0 ? 0 : (state === 'playing' ? Math.max(-.38, Math.min(.85, ham.vy / 700)) : Math.sin(performance.now() / 420) * .05);
+  const bobY = state === 'menu' ? Math.sin(performance.now() / 380) * 6 : 0;
+  if (superLeft > 0){
+    drawSuperAura(ham.x, ham.y + bobY);
+    /* flowing red cape + speed lines behind the hamster */
+    const fl = Math.sin(performance.now() / 60) * 5;
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(ham.x - 18, ham.y - 12 + bobY);
+    ctx.lineTo(ham.x - 58, ham.y - 4 + fl + bobY);
+    ctx.lineTo(ham.x - 50, ham.y + 8 + bobY);
+    ctx.lineTo(ham.x - 62, ham.y + 16 - fl + bobY);
+    ctx.lineTo(ham.x - 16, ham.y + 14 + bobY);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.65)'; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++){
+      const ly = ham.y - 14 + i * 14 + bobY, off = (performance.now() / 6 + i * 37) % 46;
+      ctx.beginPath(); ctx.moveTo(ham.x - 44 - off, ly); ctx.lineTo(ham.x - 66 - off, ly); ctx.stroke();
+    }
+  }
+  ctx.save();
+  ctx.translate(ham.x, ham.y + bobY); ctx.rotate(tilt);
+  if (invulnT > 0 && superLeft <= 0) ctx.globalAlpha = Math.floor(performance.now() / 90) % 2 ? .35 : .85;
+  ctx.drawImage(superLeft > 0 ? hamsterSuperFrames[frame] : hamsterFrames[frame], -46, -40, 92, 77);
+  ctx.restore();
+  if (handbackT > 0 && state === 'playing'){
+    /* safe-landing ring + draining bar above the hamster */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(125,211,252,.9)'; ctx.lineWidth = 3; ctx.setLineDash([7, 5]);
+    ctx.beginPath(); ctx.arc(ham.x, ham.y + bobY, 45, 0, 6.29); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(10,20,40,.55)'; ctx.fillRect(ham.x - 32, ham.y + bobY - 66, 64, 7);
+    ctx.fillStyle = '#7dd3fc'; ctx.fillRect(ham.x - 32, ham.y + bobY - 66, 64 * Math.max(0, handbackT / .9), 7);
+    ctx.font = '900 11px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#bae6fd'; ctx.fillText(tt('handbackLbl'), ham.x, ham.y + bobY - 72);
+    ctx.restore();
+  }
+  if (shieldCharges > 0){
+    /* shield bubble */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(125,211,252,.95)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(ham.x, ham.y + bobY, 43 + Math.sin(performance.now() / 240) * 2, 0, 6.29); ctx.stroke();
+    ctx.strokeStyle = 'rgba(224,242,254,.8)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(ham.x, ham.y + bobY, 43, -2.4, -1.5); ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ground */
+  rect(0, PLAY_H, W, GROUND_H, night ? '#4a3566' : '#b07a3f');
+  rect(0, PLAY_H, W, 12, night ? '#38b26a' : '#57a639');
+  for (let x = -48; x < W + 48; x += 48){
+    rect(x - groundOff, PLAY_H + 22, 22, 7, 'rgba(0,0,0,.14)');
+    rect(x - groundOff + 22, PLAY_H + 44, 18, 6, 'rgba(0,0,0,.12)');
+    rect(x - groundOff + 8, PLAY_H + 3, 12, 5, 'rgba(255,255,255,.20)');
+  }
+
+  /* HUD */
+  if (state === 'playing' || state === 'over' || state === 'paused' || state === 'dying'){
+    ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(0, 0, W, 58);
+    ctx.fillStyle = '#fff'; ctx.font = '900 32px Courier'; ctx.textAlign = 'center';
+    ctx.fillText(String(score), W / 2, 40);
+    ctx.font = 'bold 14px Segoe UI'; ctx.textAlign = 'left';
+    ctx.fillText('✨ ' + auraCount, 12, 36);
+    ctx.font = '12px Segoe UI';
+    ctx.fillText('❤️'.repeat(Math.max(0, hp)) + '🖤'.repeat(Math.max(0, MAXHP - hp)), 12, 54);
+    ctx.font = 'bold 14px Segoe UI';
+    if (chainN >= 2){ ctx.fillStyle = '#fb923c'; ctx.fillText('🔥 x' + chainN, 66, 36); ctx.fillStyle = '#fff'; }
+    ctx.textAlign = 'right';
+    ctx.fillText('🏆 ' + Math.max(best, score), W - 12, 36);
+    if (activeChallenge){
+      ctx.font = 'bold 11.5px Segoe UI'; ctx.fillStyle = challengeWon ? '#4ade80' : '#fda4af';
+      ctx.fillText(challengeWon ? tt('hudChalWin', { name: activeChallenge.name }) : tt('hudChal', { s: activeChallenge.score, name: activeChallenge.name }), W - 12, 55);
+      ctx.fillStyle = '#fff';
+    }
+    ctx.font = 'bold 12.5px Segoe UI';
+    if (shieldCharges > 0){ ctx.textAlign = 'left'; ctx.fillStyle = '#7dd3fc'; ctx.fillText(tt('hudShield', { n: shieldCharges }), 12, 76); }
+    if (superLeft > 3){ ctx.textAlign = 'center'; ctx.fillStyle = '#fde047'; ctx.fillText(tt('hudSuper', { n: superLeft }), W / 2, 76); }
+    else if (superLeft > 0){
+      const blink = Math.floor(performance.now() / 170) % 2 === 0;
+      ctx.textAlign = 'center'; ctx.font = '900 14.5px Segoe UI';
+      ctx.fillStyle = blink ? '#f87171' : '#fde047';
+      ctx.fillText(tt('hudSuperWarn', { n: superLeft }), W / 2, 76);
+      ctx.strokeStyle = blink ? 'rgba(248,113,113,.95)' : 'rgba(248,113,113,.35)';
+      ctx.lineWidth = 7; ctx.strokeRect(4, 4, W - 8, PLAY_H - 8);
+    }
+    if (state === 'playing' && superLeft >= 1 && superLeft <= 3){
+      /* GIANT centre countdown — impossible to miss */
+      const pop = 1 + .35 * Math.max(0, 1 - (performance.now() - superTickAt) / 380);
+      const blink2 = Math.floor(performance.now() / 200) % 2 === 0;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = '900 ' + Math.round(43 * pop) + 'px Segoe UI';
+      ctx.lineWidth = 7; ctx.strokeStyle = 'rgba(30,5,5,.65)';
+      const msg = tt('hudSuperCount', { n: superLeft });
+      ctx.strokeText(msg, W / 2, 168); ctx.fillStyle = blink2 ? '#f87171' : '#fde047'; ctx.fillText(msg, W / 2, 168);
+      ctx.font = '900 15px Segoe UI';
+      ctx.lineWidth = 4;
+      const sub = tt('hudSuperSub');
+      ctx.strokeText(sub, W / 2, 196); ctx.fillStyle = '#fff'; ctx.fillText(sub, W / 2, 196);
+      ctx.restore();
+    }
+    if (achToast){
+      const tw = 316, tx = (W - tw) / 2, ty = 92;
+      ctx.save();
+      ctx.fillStyle = 'rgba(24,16,52,.92)'; ctx.fillRect(tx, ty, tw, 40);
+      ctx.strokeStyle = '#facc15'; ctx.lineWidth = 2; ctx.strokeRect(tx, ty, tw, 40);
+      ctx.fillStyle = '#fde047'; ctx.font = '900 14px Segoe UI'; ctx.textAlign = 'center';
+      ctx.fillText(tt('achLine', { icon: achToast.icon, text: achToast.text }), W / 2, ty + 26);
+      ctx.restore();
+    }
+    if (state === 'playing'){
+      ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = 'bold 11.5px Segoe UI';
+      ctx.fillText(tt('hudBigAura', { n: auraProgress }), 10, PLAY_H - 10);
+      if (!moveAnnounced) ctx.fillText(tt('hudBreathProg', { n: Math.min(auraCount, 30) }), 10, PLAY_H - 27);
+      else { ctx.fillStyle = '#fb923c'; ctx.fillText(tt('hudBreathing'), 10, PLAY_H - 27); ctx.fillStyle = 'rgba(255,255,255,.85)'; }
+    }
+    if (state === 'paused') drawPausedOverlay();
+  }
+  ctx.restore();
+}
+/* Obstacles v2: a bamboo grove — 3 segmented culms per column,
+   wooden cap + leafy tuft at the gap edge. Same 64px hitbox. */
+function drawPipe(p){
+  const wPipe = p.w || 64, topH = p.gapY - p.gap / 2, botY = p.gapY + p.gap / 2;
+  drawBamboo(p.x, 0, topH, wPipe, true, p.golden, p.boss);
+  drawBamboo(p.x, botY, PLAY_H, wPipe, false, p.golden, p.boss);
+  if (p.golden){
+    ctx.font = '15px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('🌟', p.x + wPipe / 2, p.gapY + 5);
+  }
+  if (p.boss){
+    const bob = 3 * Math.sin(performance.now() / 300);
+    ctx.save();
+    ctx.font = '17px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('👹', p.x + wPipe / 2, p.gapY - p.gap / 2 - 12 + bob);
+    ctx.strokeStyle = 'rgba(248,113,113,.55)'; ctx.lineWidth = 2;
+    ctx.strokeRect(p.x - 2, p.gapY - p.gap / 2, wPipe + 4, p.gap);
+    ctx.restore();
+  }
+  if (p.breathAmp){
+    /* pulsing outline + spiral tag: a breathing pipe is unmistakable */
+    const pulse = .45 + .4 * Math.sin(performance.now() / 160);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(251,146,60,' + pulse + ')'; ctx.lineWidth = 3;
+    ctx.strokeRect(p.x - 2, p.gapY - p.gap / 2, wPipe + 4, p.gap);
+    ctx.font = '14px Segoe UI'; ctx.textAlign = 'center';
+    ctx.fillText('🌀', p.x + wPipe / 2, p.gapY - p.gap / 2 - 10);
+    ctx.restore();
+  }
+}
+function drawBamboo(x, y0, y1, wPipe, isTop, golden, boss){
+  if (y1 - y0 < 8) return;
+  const night = wheel.online && !isSpinning();
+  const cols = boss ? ['#4e7a3a', '#5d8a45', '#4e7a3a', '#5d8a45', '#4e7a3a']
+    : golden ? ['#d9a441', '#e7bc58', '#d9a441'] : (night ? ['#2e7d4f', '#35945e', '#2e7d4f'] : ['#58b368', '#6cc477', '#58b368']);
+  const dark = boss ? '#33512a' : golden ? '#a8742a' : (night ? '#1d5c38' : '#3d8b4f'),
+        light = boss ? '#8fbf6f' : golden ? '#ffe9a8' : (night ? '#57b77e' : '#a7e08a'),
+        node = boss ? '#274020' : golden ? '#8a5f1c' : (night ? '#175433' : '#2f7040');
+  const culms = [];
+  for (let cx = 2; cx + 17 <= wPipe; cx += 21) culms.push(cx);
+  culms.forEach((off, i) => {
+    rect(x + off, y0, 17, y1 - y0, cols[i % cols.length]);   // culm body
+    rect(x + off + 3, y0, 4, y1 - y0, light);                // highlight
+    rect(x + off + 13, y0, 4, y1 - y0, dark);                // shade
+    for (let y = y0 + 14; y < y1 - 6; y += 34) rect(x + off, y, 17, 5, node);   // segment joints
+    if (boss){ const mh = Math.max(30, (y1 - y0) - 40); rect(x + off + 5, y0 + ((off * 37) % mh) + 8, 8, 5, '#2c5426'); }   // moss patch
+  });
+  /* wooden cap at the gap edge — red lacquer for the boss */
+  const capY = isTop ? y1 - 13 : y0;
+  rect(x - 3, capY, wPipe + 6, 13, boss ? '#7c2d12' : golden ? '#a8742a' : '#8a5a24');
+  rect(x - 3, capY, wPipe + 6, 4, boss ? '#dc2626' : golden ? '#e7bc58' : '#b07a3f');
+  rect(x - 3, isTop ? capY + 9 : capY, wPipe + 6, 4, boss ? '#451a03' : golden ? '#7c5518' : '#5f3c14');
+  rect(x + 6, capY + 4, 5, 5, '#6d4a1e'); rect(x + wPipe - 11, capY + 4, 5, 5, '#6d4a1e');
+  /* leafy tuft sprouting from the cap */
+  const ly = isTop ? capY - 2 : capY + 13;
+  const dir = isTop ? -1 : 1;
+  ctx.fillStyle = night ? '#2e9e5f' : '#4caf50';
+  [[-8, 0], [10, -4], [28, 0], [46, -4], [64, 0], [82, -4], [100, 0]].filter(([lx]) => lx < wPipe - 4).forEach(([lx, lo]) => {
+    ctx.save(); ctx.translate(x + lx + 6, ly + lo * dir); ctx.rotate((lx % 3 - 1) * .5 * dir);
+    ctx.fillRect(-3, dir > 0 ? 0 : -14, 6, 14);
+    ctx.restore();
+  });
+  /* a tiny bamboo shoot peeking at the cap corner */
+  rect(x + wPipe - 8, isTop ? capY - 9 : capY + 13, 5, 9, light);
+}
+
+/* ---------------- Input ---------------- */
+function pressAction(){
+  if (state === 'menu'){ startRun(); return; }
+  if (state === 'wheel'){ wheelJump(); return; }
+  if (state === 'crush'){ ham.vy = -380; beep(500, .05, 'square', .03); return; }
+  if (state === 'playing') flap();
+}
+canvas.addEventListener('pointerdown', e => { e.preventDefault(); pressAction(); });
+document.addEventListener('keydown', e => {
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+  if (e.code === 'Space' || e.code === 'ArrowUp'){ e.preventDefault(); pressAction(); }
+  if (e.code === 'KeyR' && (state === 'over' || state === 'playing' || state === 'paused')) startRun();
+  if (e.code === 'KeyP') togglePause();
+  if (e.code === 'KeyM') toggleSound();
+});
+$('startBtn').addEventListener('click', startRun);
+$('retryBtn').addEventListener('click', startRun);
+$('restartBtn').addEventListener('click', () => { if (state !== 'menu') startRun(); });
+/* ---- challenge wiring ---- */
+try { $('myName').value = localStorage.getItem('squeekName') || ''; } catch (e) {}
+$('myName').addEventListener('change', () => storeSet('squeekName', $('myName').value.trim()));
+$('chalLoadBtn').addEventListener('click', () => {
+  try {
+    pendingChallenge = chalDecode($('chalInput').value);
+    $('chalStatus').innerHTML = tt('chalActive', { name: escHtml(pendingChallenge.name), s: pendingChallenge.score, m: pendingChallenge.meters }) + ' <button class="skinbtn" id="chalClearBtn">' + tt('chalClearBtn') + '</button>';
+    $('chalClearBtn').addEventListener('click', () => {
+      pendingChallenge = null; $('chalStatus').textContent = tt('chalCleared'); refreshMenuInfo();
+    });
+    refreshMenuInfo(); beep(880, .07, 'square', .05);
+  } catch (e) {
+    $('chalStatus').textContent = tt('chalInvalid');
+  }
+});
+$('chalGenBtn').addEventListener('click', () => {
+  const nm = ($('myName').value || '').trim() || tt('chalAnon');
+  const code = chalEncode({ v: 1, name: nm, score, meters: +(distPx / 46).toFixed(1), seed: runSeed });
+  const out = $('chalOut');
+  out.style.display = 'block';
+  out.textContent = tt('chalShare', { code: code, s: score });
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(code).catch(() => {});
+  beep(880, .07, 'square', .05);
+});
+$('menuBtn').addEventListener('click', () => {
+  refreshMenuInfo();
+  state = 'menu'; overOverlay.classList.add('hidden'); menuOverlay.classList.remove('hidden');
+  ham.y = 300; ham.vy = 0; pipes = []; aurasArr = [];
+});
+function togglePause(){
+  /* the portal mini-games (Cage Runner = 'wheel', Bamboo Squeeze = 'crush')
+     pause too: remember which phase we froze and resume straight into it */
+  if (state === 'playing' || state === 'wheel' || state === 'crush'){ pausedFrom = state; state = 'paused'; $('pauseBtn').textContent = tt('resume'); }
+  else if (state === 'paused'){ state = pausedFrom; pausedFrom = 'playing'; $('pauseBtn').textContent = tt('pause'); lastT = performance.now(); }
+}
+function toggleSound(){
+  soundOn = !soundOn;
+  $('soundBtn').textContent = soundOn ? tt('soundOn') : tt('soundOff');
+}
+$('pauseBtn').addEventListener('click', togglePause);
+$('soundBtn').addEventListener('click', toggleSound);
+
+applyLang(); renderWallet();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

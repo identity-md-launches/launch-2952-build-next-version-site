@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Squeek Flap — Run With Squeektoshi | Bản chơi thử</title>
+<meta name="description" content="Squeek Flap: a Flappy-style browser game starring Squeektoshi the hamster, with maps seeded by the live Squeekchain round.">
+<meta property="og:title" content="Squeek Flap — Run With Squeektoshi">
+<meta property="og:description" content="Fly Squeektoshi through bamboo columns on a map seeded by the live Squeekchain round.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="og-image.svg">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2317102a'/%3E%3Ctext x='32' y='46' font-size='40' text-anchor='middle'%3E%F0%9F%90%B9%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#17102a; --panel:#241a3f; --panel2:#2e2150; --line:#4b367c;
@@ -734,6 +740,7 @@ buildSprites();
 /* ---------------- Game state ---------------- */
 const ham = { x: 96, y: 300, vy: 0, r: 17 };
 let state = 'menu';            // menu | playing | paused | over
+let pausedFrom = 'playing';    // the phase a pause froze: playing | wheel | crush
 let pipes = [], aurasArr = [], particles = [], skillItems = [], floaters = [];
 let shieldCharges = 0, superLeft = 0, invulnT = 0;
 /* hit points: start (and max) 2 hearts — a hit costs 1 heart before death */
@@ -852,6 +859,7 @@ let clouds = [], hillsOff = 0;
 for (let i = 0; i < 6; i++) clouds.push({ x: Math.random() * W, y: 24 + Math.random() * 150, s: .6 + Math.random() * .9 });
 refreshMenuInfo();
 
+const PIPE_NOMINAL_SPEED = 200;   /* px per "second" of pipe animation (gap breathing, Boss drift) */
 function gapSize(){ return Math.max(150, 186 - score * 1.1); }
 function superBoost(){
   if (superLeft <= 0) return 1;
@@ -900,7 +908,7 @@ function startRun(){
     status: wheel.online ? wheel.status : 'OFFLINE',
     work: wheel.work
   };
-  state = 'playing';
+  state = 'playing'; pausedFrom = 'playing';
   menuOverlay.classList.add('hidden'); overOverlay.classList.add('hidden');
   flap();
 }
@@ -944,9 +952,9 @@ function endRun(){
     (giftsOpened ? '<div><span>' + tt('rGifts') + '</span><b>' + giftsOpened + (giftSkinWon ? tt('rGiftSkin', { name: escHtml(skinName(SKINS.find(k => k.id === giftSkinWon) || { name: giftSkinWon, en: giftSkinWon })) }) : '') + '</b></div>' : '') +
     (crushPassed ? '<div><span>' + tt('rCrush') + '</span><b>' + crushPassed + (crushAuraRun ? tt('rCrushAura', { n: crushAuraRun }) : '') + '</b></div>' : '') +
     '<div><span>' + tt('rChain') + '</span><b>x' + chainMax + '</b></div>' +
-    '<div><span>' + tt('rRound') + '</span><b>#' + runSnapshot.round + '</b></div>' +
-    '<div><span>' + tt('rBlock') + '</span><b>#' + runSnapshot.block + '</b></div>' +
-    '<div><span>' + tt('rRpm') + '</span><b>' + runSnapshot.rpm + ' (' + runSnapshot.status + ')</b></div>' +
+    '<div><span>' + tt('rRound') + '</span><b>#' + escHtml(runSnapshot.round) + '</b></div>' +
+    '<div><span>' + tt('rBlock') + '</span><b>#' + escHtml(runSnapshot.block) + '</b></div>' +
+    '<div><span>' + tt('rRpm') + '</span><b>' + escHtml(runSnapshot.rpm) + ' (' + escHtml(runSnapshot.status) + ')</b></div>' +
     '<div><span>' + tt('rTime') + '</span><b>' + elapsed.toFixed(1) + ' ' + tt('uSecs') + '</b></div>' +
     '<div><span>' + tt('rMisHead') + '</span><b>' + tt('rMisN', { n: newly }) + '</b></div>' +
     doneList.map(d => '<div><span>' + (d.ok ? '✅' : '⬜') + ' ' + d.text + '</span><b>' + (d.ok ? tt('rDone') : tt('rTodo')) + '</b></div>').join('');
@@ -1063,6 +1071,8 @@ function loop(t){
   draw();
 }
 function update(dt){
+  /* a paused mini-game is frozen solid: no timers, physics or spawns */
+  if (state === 'paused' && pausedFrom !== 'playing') return;
   frameTimer += dt;
   groundOff = (groundOff + (state === 'playing' ? baseSpeed() * dt : 14 * dt)) % 48;
   hillsOff = (hillsOff + (state === 'playing' ? baseSpeed() * dt * .25 : 3 * dt)) % 120;
@@ -1106,7 +1116,8 @@ function update(dt){
     sndAlarm();
     /* pipes already on screen join in, so the change is visible at once */
     pipes.forEach(pp => {
-      if (!pp.counted && !pp.breathAmp && !pp.boss){ pp.breathAmp = 35; pp.baseGap = pp.gap; pp.phase = Math.random() * 6.28; }
+      /* keep the seeded spawn phase: the same seed breathes the same way */
+      if (!pp.counted && !pp.breathAmp && !pp.boss){ pp.breathAmp = 35; pp.baseGap = pp.gap; }
     });
   }
   if (skinId === 'hoang-kim' && state === 'playing' && Math.random() < .5)
@@ -1194,20 +1205,24 @@ function update(dt){
   }
   pipes.forEach(p => p.x -= sp * dt);
   pipes.forEach(pipe => {
+    /* animation clock = how far this pipe has travelled since it
+       spawned (px → s at the nominal 200px/s), not wall-clock time, so
+       the same seed gives the same gap at the same spot on every run */
+    const pt = (W + 70 - pipe.x) / PIPE_NOMINAL_SPEED;
     if (pipe.boss){
       /* the boss gap drifts slowly up/down (±22px, +4 per boss) and
          breathes lightly (±14px) — a living gate */
       const half = pipe.gap / 2;
       pipe.gapY = Math.max(half + 36, Math.min(PLAY_H - half - 36,
-        pipe.bossBaseY + Math.sin(elapsed * 1.047 + pipe.phase) * pipe.bossAmp));
+        pipe.bossBaseY + Math.sin(pt * 1.047 + pipe.phase) * pipe.bossAmp));
       pipe.gap = Math.max(128, Math.min(245,
-        pipe.baseGap + Math.sin(elapsed * 1.428 + pipe.phase + 1.7) * 14));
+        pipe.baseGap + Math.sin(pt * 1.428 + pipe.phase + 1.7) * 14));
     } else if (pipe.breathAmp){
       /* one full breath ≈ 4.4s. Asymmetric (Vinh): the gap widens up
          to +50 but only narrows to -20 vs its base — the tightest
          moment stays friendly. Safety floor 130px, ceiling 245px. */
       pipe.gap = Math.max(130, Math.min(245,
-        pipe.baseGap + 15 + Math.sin(elapsed * 1.428 + pipe.phase) * pipe.breathAmp));
+        pipe.baseGap + 15 + Math.sin(pt * 1.428 + pipe.phase) * pipe.breathAmp));
     }
   });
   aurasArr.forEach(c => c.x -= sp * dt);
@@ -1383,9 +1398,9 @@ function updateCrush(dt){
   /* aura drifting through the gap, riding the band's own rails */
   CR.orbT -= dt;
   if (CR.orbT <= 0){
-    const fr = [-.7, -.35, 0, .35, .7][Math.floor(Math.random() * 5)];
-    CR.orbs.push({ x: W + 30, f: fr, taken: false, ph: Math.random() * 6.28 });
-    CR.orbT = 1.8 + Math.random() * .9;
+    const fr = [-.7, -.35, 0, .35, .7][Math.floor(rng() * 5)];
+    CR.orbs.push({ x: W + 30, f: fr, taken: false, ph: rng() * 6.28 });
+    CR.orbT = 1.8 + rng() * .9;
   }
   const sp = baseSpeed();
   CR.orbs.forEach(o => { o.x -= sp * dt; o.y = CR.cy + o.f * (CR.band / 2 - 26); });
@@ -1410,7 +1425,7 @@ function updateCrush(dt){
 }
 function drawCrush(){
   ctx.save();
-  if (shakeT > 0) ctx.translate((Math.random() - .5) * shakeT * 24, (Math.random() - .5) * shakeT * 24);
+  if (shakeT > 0 && state !== 'paused') ctx.translate((Math.random() - .5) * shakeT * 24, (Math.random() - .5) * shakeT * 24);
   rect(0, 0, W, H, '#1b1035');
   ctx.fillStyle = '#fef9c3';
   wheelStars.forEach(st => { ctx.globalAlpha = .3 + .25 * Math.sin(performance.now() / 700 + st.x); ctx.beginPath(); ctx.arc(st.x, st.y, st.r, 0, 6.29); ctx.fill(); });
@@ -1445,7 +1460,7 @@ function drawCrush(){
   /* hamster */
   const blink = CR.invuln > 0 && Math.floor(performance.now() / 90) % 2 === 0;
   if (!blink) ctx.drawImage(hamsterFrames[Math.floor(frameTimer * 9) % 3], ham.x - 46, ham.y - 40, 92, 77);
-  if (Math.random() < .3)
+  if (state !== 'paused' && Math.random() < .3)
     particles.push({ x: Math.random() * W, y: Math.random() < .5 ? CR.top : CR.bot, vx: 0, vy: (Math.random() - .5) * 30, life: .3, col: '#a7e08a', s: 2 });
   particles.forEach(pt => { ctx.fillStyle = pt.col; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); });
   /* floaters */
@@ -1546,8 +1561,8 @@ function updateWheel(dt){
   if (W2.spawnT <= 0){
     if (blockedAt(SPAWN_A)) W2.spawnT = .15;      /* wait for a clean window */
     else {
-      W2.blocks.push({ a: SPAWN_A, hgt: 30 + Math.random() * 22, rock: Math.random() < .45 });
-      W2.spawnT = (240 + Math.random() * 100) / W2.speed;
+      W2.blocks.push({ a: SPAWN_A, hgt: 30 + rng() * 22, rock: rng() < .45 });
+      W2.spawnT = (240 + rng() * 100) / W2.speed;
     }
   }
   /* aura groups: a low line along the rim, or an arc to jump for.
@@ -1557,10 +1572,10 @@ function updateWheel(dt){
     const step = 27 / CAGE.R;
     if (blockedAt(SPAWN_A) || blockedAt(SPAWN_A - 4 * step)) W2.orbT = .15;
     else {
-      const arc = Math.random() < .5, n = 5;
+      const arc = rng() < .5, n = 5;
       for (let i = 0; i < n; i++)
-        W2.orbs.push({ a: SPAWN_A - i * step, hOff: arc ? 24 + Math.sin(i / (n - 1) * Math.PI) * 88 : 24, taken: false, ph: Math.random() * 6.28 });
-      W2.orbT = 1.5 + Math.random() * 1.3;
+        W2.orbs.push({ a: SPAWN_A - i * step, hOff: arc ? 24 + Math.sin(i / (n - 1) * Math.PI) * 88 : 24, taken: false, ph: rng() * 6.28 });
+      W2.orbT = 1.5 + rng() * 1.3;
     }
   }
   W2.blocks.forEach(b => b.a += om * dt);
@@ -1600,7 +1615,7 @@ function drawWheelAura(x, y, ph){
 }
 function drawWheel(){
   ctx.save();
-  if (shakeT > 0) ctx.translate((Math.random() - .5) * shakeT * 22, (Math.random() - .5) * shakeT * 22);
+  if (shakeT > 0 && state !== 'paused') ctx.translate((Math.random() - .5) * shakeT * 22, (Math.random() - .5) * shakeT * 22);
   /* night carnival sky */
   rect(0, 0, W, H, '#171233');
   ctx.fillStyle = '#fef9c3';
@@ -1654,7 +1669,7 @@ function drawWheel(){
   ctx.strokeStyle = 'rgba(226,192,140,.5)'; ctx.lineWidth = 5;
   ctx.beginPath(); ctx.arc(cx, cy, R + 2, 0, 6.29); ctx.stroke();
   /* sprint dust at the rim */
-  if (W2.grounded && Math.random() < .35)
+  if (state !== 'paused' && W2.grounded && Math.random() < .35)
     particles.push({ x: cx - 28, y: cy + R - 4, vx: -50 - Math.random() * 40, vy: -20 - Math.random() * 20, life: .35, col: '#d6c9b8', s: 2 + Math.random() * 2 });
   particles.forEach(pt => { ctx.fillStyle = pt.col; ctx.fillRect(pt.x, pt.y, pt.s, pt.s); });
   /* floaters */
@@ -1766,9 +1781,17 @@ function drawPortal(c){
   ctx.fillStyle = st.labelCol;
   ctx.fillText(lbl, c.x, c.y + 47);
 }
+function drawPausedOverlay(){
+  ctx.fillStyle = 'rgba(10,5,25,.55)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff'; ctx.font = '900 26px Courier'; ctx.textAlign = 'center';
+  ctx.fillText(tt('pausedLbl'), W / 2, H / 2);
+}
 function draw(){
   if (state === 'wheel'){ drawWheel(); return; }
   if (state === 'crush'){ drawCrush(); return; }
+  /* a paused mini-game keeps its own scene under the PAUSED overlay */
+  if (state === 'paused' && pausedFrom === 'wheel' && W2){ drawWheel(); drawPausedOverlay(); return; }
+  if (state === 'paused' && pausedFrom === 'crush' && CR){ drawCrush(); drawPausedOverlay(); return; }
   ctx.save();
   if (shakeT > 0) ctx.translate((Math.random() - .5) * shakeT * 26, (Math.random() - .5) * shakeT * 26);
   const night = wheel.online && !isSpinning();
@@ -2023,11 +2046,7 @@ function draw(){
       if (!moveAnnounced) ctx.fillText(tt('hudBreathProg', { n: Math.min(auraCount, 30) }), 10, PLAY_H - 27);
       else { ctx.fillStyle = '#fb923c'; ctx.fillText(tt('hudBreathing'), 10, PLAY_H - 27); ctx.fillStyle = 'rgba(255,255,255,.85)'; }
     }
-    if (state === 'paused'){
-      ctx.fillStyle = 'rgba(10,5,25,.55)'; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#fff'; ctx.font = '900 26px Courier'; ctx.textAlign = 'center';
-      ctx.fillText(tt('pausedLbl'), W / 2, H / 2);
-    }
+    if (state === 'paused') drawPausedOverlay();
   }
   ctx.restore();
 }
@@ -2145,8 +2164,10 @@ $('menuBtn').addEventListener('click', () => {
   ham.y = 300; ham.vy = 0; pipes = []; aurasArr = [];
 });
 function togglePause(){
-  if (state === 'playing'){ state = 'paused'; $('pauseBtn').textContent = tt('resume'); }
-  else if (state === 'paused'){ state = 'playing'; $('pauseBtn').textContent = tt('pause'); lastT = performance.now(); }
+  /* the portal mini-games (Cage Runner = 'wheel', Bamboo Squeeze = 'crush')
+     pause too: remember which phase we froze and resume straight into it */
+  if (state === 'playing' || state === 'wheel' || state === 'crush'){ pausedFrom = state; state = 'paused'; $('pauseBtn').textContent = tt('resume'); }
+  else if (state === 'paused'){ state = pausedFrom; pausedFrom = 'playing'; $('pauseBtn').textContent = tt('pause'); lastT = performance.now(); }
 }
 function toggleSound(){
   soundOn = !soundOn;
