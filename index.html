@@ -853,6 +853,7 @@ function storeGet(k){ try { return localStorage.getItem(k); } catch(e){ return n
 function storeSet(k, v){ try { localStorage.setItem(k, v); } catch(e){ /* storage blocked: play on without saving */ } }
 let score = 0, auraCount = 0, best = parseInt(storeGet('squeekFlapBest') || '0', 10);
 let rng = mulberry32(1), lastGapY = 280, distPx = 0, elapsed = 0;
+let miniRng = mulberry32(1);    // portal play must not advance the bamboo map stream
 let runSnapshot = null, frameTimer = 0, spawnDist = 0, groundOff = 0, wheelAngle = 0;
 let clouds = [], hillsOff = 0;
 
@@ -900,6 +901,7 @@ function startRun(){
   ham.y = 300; ham.vy = 0; lastGapY = 280;
   runSeed = currentSeed();
   rng = mulberry32(runSeed);
+  miniRng = mulberry32(runSeed ^ 0x9e3779b9);
   activeChallenge = pendingChallenge; challengeWon = false;
   runSnapshot = {
     round: wheel.online && wheel.round != null ? wheel.round : 'demo',
@@ -1159,12 +1161,13 @@ function update(dt){
     /* every 30 points the next column is a BOSS: extra-wide bamboo
        gate with a tighter, drifting, lightly breathing gap */
     const isBoss = score >= nextBossAt;
+    const goldenRoll = rng();
     let golden = false, gapVal = gs;
     if (isBoss){
       bossCount++; nextBossAt += 30;
       gapVal = Math.max(128, gs - 16 - 2 * (bossCount - 1));
     } else {
-      golden = rng() < .12;
+      golden = goldenRoll < .12;
       gapVal = golden ? Math.max(132, gs * .92) : gs;
     }
     /* from 30 Aura on, new bamboo columns BREATHE (Vinh's design): the
@@ -1175,32 +1178,35 @@ function update(dt){
       bossAmp: isBoss ? Math.min(34, 22 + 4 * (bossCount - 1)) : 0 };
     pipes.push(pipe);
     const spotX = W + 70 + pipe.w / 2;
+    /* Every column consumes the same rolls, even when a pickup is ineligible.
+       Its phase is drawn too, so collecting items cannot shift later gaps. */
+    const r = [rng(), rng(), rng(), rng(), rng()], pickupPhase = rng() * 6.28;
     if (isBoss){
       floater(W / 2, 150, tt('fBossWarn'), '#f87171'); sndAlarm();
       /* fairness: no skill item / big aura / golden on the boss gate —
          at most one plain aura in its gap */
-      if (rng() < .45) aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: false });
+      if (r[4] < .45) aurasArr.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, big: false });
     } else if (bigQueue > 0){
       bigQueue--;
-      aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: true });
-    } else if (giftCd <= 0 && superLeft <= 0 && rng() < .10){
+      aurasArr.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, big: true });
+    } else if (giftCd <= 0 && superLeft <= 0 && r[0] < .10){
       /* a gift box floats in the gap — mostly a heart, 2% a skin */
-      gifts.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28 });
+      gifts.push({ x: spotX, y: gy, taken: false, ph: pickupPhase });
       giftCd = 16;
-    } else if (portalCd <= 0 && superLeft <= 0 && portalsSpawned < 2 && rng() < .08){
+    } else if (portalCd <= 0 && superLeft <= 0 && portalsSpawned < 2 && r[1] < .08){
       /* a swirling portal gate — fly through it into the mini-game */
-      portals.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, kind: 'mini' });
+      portals.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, kind: 'mini' });
       portalsSpawned++; portalCd = 30;
-    } else if (crushCd <= 0 && superLeft <= 0 && crushPortals.length === 0 && rng() < .08){
+    } else if (crushCd <= 0 && superLeft <= 0 && crushPortals.length === 0 && r[2] < .08){
       /* the GREEN gate: an invitation to the squeeze — fly in or fly past */
-      crushPortals.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, kind: 'crush' });
+      crushPortals.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, kind: 'crush' });
       crushCd = 28;
-    } else if (skillCooldown <= 0 && superLeft <= 0 && rng() < .15){
+    } else if (skillCooldown <= 0 && superLeft <= 0 && r[3] < .15){
       lastSkillType = lastSkillType === 'super' ? 'shield' : 'super';   // alternate fairly
-      skillItems.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, type: lastSkillType });
+      skillItems.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, type: lastSkillType });
       skillCooldown = 12;
-    } else if (rng() < .78){
-      aurasArr.push({ x: spotX, y: gy, taken: false, ph: rng() * 6.28, big: false });
+    } else if (r[4] < .78){
+      aurasArr.push({ x: spotX, y: gy, taken: false, ph: pickupPhase, big: false });
     }
   }
   pipes.forEach(p => p.x -= sp * dt);
@@ -1398,9 +1404,9 @@ function updateCrush(dt){
   /* aura drifting through the gap, riding the band's own rails */
   CR.orbT -= dt;
   if (CR.orbT <= 0){
-    const fr = [-.7, -.35, 0, .35, .7][Math.floor(rng() * 5)];
-    CR.orbs.push({ x: W + 30, f: fr, taken: false, ph: rng() * 6.28 });
-    CR.orbT = 1.8 + rng() * .9;
+    const fr = [-.7, -.35, 0, .35, .7][Math.floor(miniRng() * 5)];
+    CR.orbs.push({ x: W + 30, f: fr, taken: false, ph: miniRng() * 6.28 });
+    CR.orbT = 1.8 + miniRng() * .9;
   }
   const sp = baseSpeed();
   CR.orbs.forEach(o => { o.x -= sp * dt; o.y = CR.cy + o.f * (CR.band / 2 - 26); });
@@ -1561,8 +1567,8 @@ function updateWheel(dt){
   if (W2.spawnT <= 0){
     if (blockedAt(SPAWN_A)) W2.spawnT = .15;      /* wait for a clean window */
     else {
-      W2.blocks.push({ a: SPAWN_A, hgt: 30 + rng() * 22, rock: rng() < .45 });
-      W2.spawnT = (240 + rng() * 100) / W2.speed;
+      W2.blocks.push({ a: SPAWN_A, hgt: 30 + miniRng() * 22, rock: miniRng() < .45 });
+      W2.spawnT = (240 + miniRng() * 100) / W2.speed;
     }
   }
   /* aura groups: a low line along the rim, or an arc to jump for.
@@ -1572,10 +1578,10 @@ function updateWheel(dt){
     const step = 27 / CAGE.R;
     if (blockedAt(SPAWN_A) || blockedAt(SPAWN_A - 4 * step)) W2.orbT = .15;
     else {
-      const arc = rng() < .5, n = 5;
+      const arc = miniRng() < .5, n = 5;
       for (let i = 0; i < n; i++)
-        W2.orbs.push({ a: SPAWN_A - i * step, hOff: arc ? 24 + Math.sin(i / (n - 1) * Math.PI) * 88 : 24, taken: false, ph: rng() * 6.28 });
-      W2.orbT = 1.5 + rng() * 1.3;
+        W2.orbs.push({ a: SPAWN_A - i * step, hOff: arc ? 24 + Math.sin(i / (n - 1) * Math.PI) * 88 : 24, taken: false, ph: miniRng() * 6.28 });
+      W2.orbT = 1.5 + miniRng() * 1.3;
     }
   }
   W2.blocks.forEach(b => b.a += om * dt);

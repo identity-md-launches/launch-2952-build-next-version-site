@@ -46,7 +46,7 @@ Canvas scene colors are literals in the draw functions:
 - Aura violet runs `#f5d0fe` → `#c084fc` → `#7c3aed`.
 - Portal styles are in `PORTAL_STYLES`.
 
-No contrast ratios were measured for this release (see the README's validation section).
+The revision's Chromium probe measured `#wheelStatus` at 16.22:1, `#liveNote` at 9.39:1 and `#pauseBtn` at 15.22:1 in the offline state. All measured solid-background text passed the probe's contrast thresholds. It left 51 text boxes over canvas/gradients unmeasured; see [validation](artifacts/validation.md).
 
 ## Typography
 
@@ -83,6 +83,8 @@ That is 12 distinct sizes. This is more than the six-size scale the design revie
 - **Breakpoints:** none. The single column fills widths below 460px (440px + 20px padding). At wider widths it stays 440px and centred.
 - **Viewport meta:** `maximum-scale=1.0, user-scalable=no` (pre-existing; see validation findings).
 
+The unchanged layout was rendered at 320, 390, 768 and 1440 CSS pixels in Chromium. There was no horizontal page overflow; the stage and START action were visible on the first 390×844 screen. The fixed-height overlay clips menu content at 320 and collapses the skin picker at narrow widths. These inherited constraints are recorded rather than redesigned in this gameplay-only revision. Controlled before/after menu screenshots matched exactly at all four widths.
+
 ## Elevation & Depth
 
 - The stage has a deep drop shadow: `0 18px 40px rgba(0,0,0,.45)`.
@@ -117,17 +119,19 @@ All of these are in `index.html`; none is a separate module.
 - **Skin card** `.skincard`: preview image, lock badge, name, progress bar `.pbar`, status `.st`, and an equipped marker `.eqb` or `.eq` border. Rendered by `renderSkins()`.
 - **Run receipt** `.receipt`: label/value rows (`div` > `span` + `b`). Rendered by `endRun()`. Every value that comes from the API (round, block, RPM, wheel status) and every player-supplied value goes through `escHtml()` before being inserted as HTML.
 - **Canvas overlays:**
-  - PAUSED: `drawPausedOverlay()`, a `rgba(10,5,25,.55)` scrim with 26px bold Courier text. It is drawn over the main run and, from this release, over a paused Cage Runner (`drawWheel()`) or Bamboo Squeeze (`drawCrush()`) scene.
+  - PAUSED: `drawPausedOverlay()`, a `rgba(10,5,25,.55)` scrim with 26px bold Courier text. It is drawn over the main run and over a paused Cage Runner (`drawWheel()`) or Bamboo Squeeze (`drawCrush()`) scene.
   - Also drawn on the canvas: HUD bar (58px, translucent black), floaters, achievement toast, portals (`drawPortal()`), gifts (`drawGift()`) and skill badges (`drawSkillItem()`).
 
 **Game states:** `menu | playing | paused | over | dying | wheel | crush`. `pausedFrom` remembers which of `playing`, `wheel` or `crush` was paused. While paused, a mini-game's `update` is frozen and taps/Space are ignored (`pressAction()` has no `paused` branch).
+
+Both mini-game pause paths were exercised through P and the Pause/Resume button in Chromium, including Space, Up and touch input suppression. The unchanged wall-clock cosmetic twinkles and pulses may still animate beneath the overlay; gameplay timers, positions, spawns and particle state stay frozen.
 
 ## Do's and Don'ts
 
 - Do reuse the `:root` tokens for any new DOM UI. Use `--panel` with a 2px `--line` border and a 14px radius for a new panel.
 - Do use `.btn` for the one main action on a screen and `.btn.ghost` or `.skinbtn` for secondary actions.
 - Do pass any API or player-supplied string through `escHtml()` before putting it into `innerHTML`.
-- Do draw run-affecting randomness (obstacles, Aura, mini-game spawns) from the seeded `rng()`. Use `Math.random` only for cosmetic effects (particles, clouds, screen shake) and the gift jackpot. Pipe animation must stay a function of the pipe's own x position (`PIPE_NOMINAL_SPEED`), not of elapsed time.
+- Do draw bamboo-map randomness from `rng()` with a fixed nine draws per column, including unused pickup rolls/phases. Draw mini-game obstacles and Aura from `miniRng()`, separately seeded from the same run seed in `startRun()`. Neither portal duration nor pickup eligibility may advance the bamboo stream differently. Use `Math.random` only for cosmetic effects (particles, clouds, screen shake) and the gift jackpot. Pipe animation must stay a function of the pipe's own x position (`PIPE_NOMINAL_SPEED`), not of elapsed time.
 - Don't add new font sizes. Pick from the existing ones.
 - Don't add a second gold-filled action next to START.
 - **Adding a page or panel:** put a new `<div class="howto">`-style panel inside `.wrap`, keep it in the same single column, and add its strings to both `STR.en` and `STR.vi` with a `data-i18n` key.
